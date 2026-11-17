@@ -1,0 +1,5 @@
+# budget_policy.yaml — 비용 가드. 4.3절(비용 실측)과 8.5절(예산 상한).
+# 아래 상한은 초기 가정값이다. 4장 비용 실측 뒤에 조정한다.
+run_budget_usd: 5.00          # 스크립트 1회 실행의 추정 비용 상한
+episode_budget_usd: 15.00     # 한 편(초안+편집+업스케일) 상한
+on_unknown_price: block       # 단가가 확인되지 않은 호출은 막는다 (block | warn)

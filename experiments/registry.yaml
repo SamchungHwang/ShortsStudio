@@ -1,0 +1,69 @@
+# registry.yaml — 선행 검증 실험 목록 (작업 순서 1단계, 부록 A의 원천)
+# status: todo | running | done | blocked
+# 결과는 experiments/records/<ID>/ 에 api_run.json, 결과 파일, result.md 로 남긴다.
+# 실험으로 확인된 값만 configs/models.yaml 과 원고에 사실로 쓴다.
+updated_on: "2026-11-17"
+experiments:
+  - id: E00
+    title: "호출 형태 확정: duration 문자열 형식, 텍스트 항목 키, 응답 필드"
+    question: "response_format.duration='15s' 가 받아들여지는가. 이미지+텍스트 입력에서 텍스트 항목의 키는 무엇인가."
+    feeds: ["2장", "acs/production/omni_client.py"]
+    status: todo
+  - id: E01
+    title: "레퍼런스 이미지 상한"
+    question: "레퍼런스 이미지는 6장(캐릭터당 3장, 2명)까지인가."
+    secondary_claim: "2차 자료(kingy.ai, 2026-11-06경)는 '최대 6장, 2명에 대해 캐릭터당 3장'이라고 적는다. 공식 문서 대조 필요."
+    feeds: ["7.1절", "7.2절"]
+    status: todo
+  - id: E02
+    title: "첫·끝 프레임 모드의 최대 길이와 기본 길이"
+    question: "첫·끝 프레임 보간은 몇 초까지 되는가. 길이를 지정하지 않으면 몇 초인가."
+    secondary_claim: "2차 자료는 '첫·끝 프레임 보간 3~10초', '기본 10초'라고 적는다. 공식 문서 대조 필요."
+    feeds: ["7.1절", "10.2절"]
+    status: todo
+  - id: E03
+    title: "11~15초 생성 시 레퍼런스 영상 개수 제한"
+    question: "11~15초를 생성할 때 레퍼런스 영상은 몇 개까지 받는가."
+    secondary_claim: "2차 자료는 '11~15초 생성에서는 레퍼런스 영상 1개'라고 적는다. 공식 문서 대조 필요."
+    feeds: ["7.1절"]
+    status: todo
+  - id: E04
+    title: "편집 호출의 API 청구액"
+    question: "previous_interaction_id 편집 1회는 얼마가 청구되는가. 실패·재시도는 청구되는가."
+    feeds: ["9.3절", "8.5절", "부록 A"]
+    status: todo
+  - id: E05
+    title: "편집 반복 시 오디오 상태"
+    question: "편집을 3회, 5회 반복하면 대사·효과음이 유지되는가, 밀리는가."
+    feeds: ["9.3절", "11.1절"]
+    status: todo
+  - id: E06
+    title: "업스케일의 방식과 추가 비용"
+    question: "1080p·4k는 재생성인가 후처리인가. 초당 얼마가 청구되는가."
+    feeds: ["8.4절", "부록 A"]
+    status: todo
+  - id: E07
+    title: "Nano Banana: image_size 대소문자 규칙, 레퍼런스 토큰 단가"
+    question: "image_size 값의 대소문자가 결과에 영향을 주는가. 레퍼런스 장수에 따라 토큰 단가가 어떻게 변하는가."
+    feeds: ["5.3절", "부록 A"]
+    status: todo
+  - id: E08
+    title: "배경·소품·앵글 편집의 성공 범위"
+    question: "배경 교체, 소품 추가·제거, 카메라 앵글 변경 각각 10회 중 몇 회 성공하는가."
+    feeds: ["9.1절"]
+    status: todo
+  - id: E09
+    title: "한국어·일본어 대사 품질과 싱크"
+    question: "한국어·일본어 대사가 알아들을 수 있게, 입 모양과 맞게 나오는가."
+    feeds: ["11.1절", "11.4절", "18.3절"]
+    status: todo
+  - id: E10
+    title: "3인 장면 합성"
+    question: "모모·단추·토토 3인 장면이 합성 스틸에서 출발하면 일관성을 유지하는가."
+    feeds: ["7.3절"]
+    status: todo
+  - id: E11
+    title: "연장·업로드 API의 최신 지원 여부"
+    question: "연장은 한 번에 몇 초, 총 몇 초까지 되는가. YouTube 업로드 API의 할당량과 AI 공시 필드는 무엇인가."
+    feeds: ["10.1절", "12.4절", "12.5절"]
+    status: todo

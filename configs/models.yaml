@@ -1,0 +1,39 @@
+# models.yaml — 기술 스택과 확인 상태 (policy-as-data)
+# status 값: official(공식 문서 확인) | experiment(직접 실험 확인) | assumed(가정·설계) | unverified(미확인)
+# 미확인 항목은 코드가 값으로 쓰지 않는다. 실험으로 확인되면 experiments/registry.yaml 의 기록 ID를 evidence 에 적는다.
+verified_on: "2026-11-17"
+
+video:
+  id: gemini-omni-1.2-flash
+  api: interactions            # client.interactions.create / POST v1beta/interactions
+  duration_s: {min: 3, max: 15, step: 1}
+  aspect_ratios: ["9:16", "16:9"]
+  resolutions:
+    native: ["360p", "720p"]
+    upscaled: ["1080p", "4k"]
+  price_usd_per_second:
+    "720p": 0.07               # status: official
+    "360p": null               # status: unverified
+    "1080p": null              # status: unverified (업스케일 추가 비용 포함 여부 미확인)
+    "4k": null                 # status: unverified
+  reference_videos: {max_count: 3, max_seconds_each: 3}
+  negative_prompt_param: false # 제외 지시는 프롬프트 본문에 자연어로
+  notes:
+    - "음성 편집 미지원, 영어 외 언어는 평가되지 않음 (1.1 기준 가이드)"
+    - "오디오 레퍼런스 업로드는 공개 API에서 미지원"
+    - "response_format.duration 의 문자열 형식(\"15s\")은 2차 자료로만 확인. 실험 E00에서 확정한다."
+
+image:
+  id: gemini-nano-banana-2.1
+  max_reference_images: 14
+  max_consistent_characters: 4
+
+music:
+  name: "Lyria 3.5"
+  id: null                     # status: unverified — 모델 ID를 공식 문서에서 확인한 뒤 채운다
+  usage: "연주곡 BGM만"
+
+fallback:
+  name: "Veo 3.1 (클라우드)"
+  durations_s: [4, 6, 8]
+  scope: "부록 B에서만"

@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acs"
+version = "0.1.0"
+description = "Gemini Omni로 구축하는 자율 Shorts 스튜디오 — 책 실습 코드"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.6",
+    "pyyaml>=6.0",
+    "google-genai",      # 버전은 고정하지 않는다. 실행한 버전을 api_run.json에 기록한다.
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff"]
+
+[tool.setuptools.packages.find]
+include = ["acs*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

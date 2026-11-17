@@ -1,0 +1,18 @@
+# production_spec.yaml — 제작 사양. 3장(길이 정책)과 6장(scene_spec)의 기준값.
+episode:
+  scene_count: 3
+  scene_roles: [setup, escalation, punchline]
+  scene_duration_s: 15
+  total_duration_s: {min: 42, max: 48}   # 조립·트림 후 목표
+  hard_max_s: 60                         # 넘기지 않는다
+shot:
+  aspect_ratio: "9:16"
+  draft_resolution: "720p"               # 초안 해상도. 360p 단가가 확인되면 8장에서 재검토
+  style_en: "Stylized 3D animated short, warm soft lighting, family-friendly, expressive anthropomorphic animals"
+exclusions_en:                           # negative_prompt 설정값이 없으므로 프롬프트 본문에 쓴다
+  - "No on-screen text, captions, subtitles or logos"
+  - "No humans"
+  - "No background music"
+prompt:
+  language: en                           # 영상·음악 프롬프트는 영어
+  interval_notation: true                # [0-5s] 표기. 쓸 수 있으나 정해진 문법은 아니다

@@ -1,0 +1,9 @@
+# ethics_lexicon.yaml — 동물 윤리 표현 사전(한·영). 6.4절.
+# 대본 단계(한국어)와 프롬프트 컴파일 단계(영어) 양쪽에서 적용한다.
+version: "2026-11-17"
+banned:
+  ko: ["무서워서 떠는", "갇힌", "다친", "피 흘리는", "벌 받는", "학대당하는"]
+  en: ["scared", "frightened", "trembling", "injured", "trapped", "punished", "abused", "bleeding"]
+preferred:
+  ko: ["깜짝 놀란", "어리둥절한", "과장되게 반응하는", "만화적으로 당황한", "무해한 슬랩스틱"]
+  en: ["surprised", "confused", "dramatically overreacting", "harmless slapstick"]
