@@ -4,7 +4,7 @@
 
 ## 기록 규칙
 - 실험마다 `records/<ID>/` 폴더를 만들고 다음을 남긴다.
-  - `api_run.json` — `acs.production.run_record.RunRecord` 로 저장 (모델 ID, SDK 버전, 일시, 요청, 추정 비용, 처리 시간)
+  - `api_run.json` — `ass.production.run_record.RunRecord` 로 저장 (모델 ID, SDK 버전, 일시, 요청, 추정 비용, 처리 시간)
   - 결과 파일 — 영상·이미지 (git에는 올리지 않는다)
   - `result.md` — 질문, 조건, 결과, 판정(확인 / 미확인 / 부분 확인), 실제 청구액
 - 정상 사례 1개와 오류·제약 사례 1개를 함께 남긴다.

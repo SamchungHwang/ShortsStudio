@@ -9,7 +9,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = ROOT / "configs"
 OUTPUT_DIR = ROOT / "outputs"
-EXAMPLE_DIR = ROOT / "examples" / "momo_monday_meeting"
+EXAMPLE_DIR = ROOT / "examples" / "moalab_skincare"
 
 
 def load_yaml(path: str | Path) -> dict[str, Any]:

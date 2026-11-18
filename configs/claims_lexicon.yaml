@@ -1,0 +1,20 @@
+# claims_lexicon.yaml — 제품 표현 가드 사전(한·영). 6.5절.
+# 대본 단계(한국어)와 프롬프트 컴파일 단계(영어) 양쪽에서 적용한다.
+#
+# status: assumed — 아래 목록은 초기 가정값이다. 식품의약품안전처의 화장품 표시·광고 자료와
+# 공정거래위원회의 비교 표시·광고 자료로 대조한 뒤 확정한다. 이 사전을 통과했다고 해서
+# 광고 표현이 적법하다는 뜻은 아니다. 효능·비교 표현은 사람 승인을 거친다(21.1절).
+version: "2026-11-17-draft"
+banned:
+  medical_claim:          # 의약품으로 오인될 수 있는 효능 단정
+    ko: ["치료", "완치", "치유", "염증 완화", "여드름 개선", "아토피", "재생"]
+    en: ["cure", "cures", "heal", "heals", "treats", "anti-inflammatory", "regenerates"]
+  absolute_claim:         # 근거 없이 쓰기 쉬운 최상급·절대 표현
+    ko: ["최고", "유일", "100%", "완벽", "부작용 없는", "무조건", "기적"]
+    en: ["best", "number one", "guaranteed", "perfect", "miracle", "no side effects"]
+  disparagement:          # 타사 제품을 깎아내리는 표현
+    ko: ["가짜", "사기", "쓰레기", "쓰면 안 되는", "최악"]
+    en: ["fake", "scam", "garbage", "worst"]
+preferred:
+  ko: ["제형과 사용감 묘사", "product_bible 에 있는 사실", "출처가 있는 수치", "누구에게 맞는지"]
+  en: ["texture and feel", "facts from the product bible", "sourced figures"]

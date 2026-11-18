@@ -7,11 +7,11 @@ experiments:
   - id: E00
     title: "호출 형태 확정: duration 문자열 형식, 텍스트 항목 키, 응답 필드"
     question: "response_format.duration='15s' 가 받아들여지는가. 이미지+텍스트 입력에서 텍스트 항목의 키는 무엇인가."
-    feeds: ["2장", "acs/production/omni_client.py"]
+    feeds: ["2장", "ass/production/omni_client.py"]
     status: todo
   - id: E01
     title: "레퍼런스 이미지 상한"
-    question: "레퍼런스 이미지는 6장(캐릭터당 3장, 2명)까지인가."
+    question: "레퍼런스 이미지는 몇 장까지 받는가(2차 자료: 6장). 제품 한 개에 몇 장을 쓰는 것이 좋은가."
     secondary_claim: "2차 자료(kingy.ai, 2026-11-06경)는 '최대 6장, 2명에 대해 캐릭터당 3장'이라고 적는다. 공식 문서 대조 필요."
     feeds: ["7.1절", "7.2절"]
     status: todo
@@ -48,22 +48,38 @@ experiments:
     feeds: ["5.3절", "부록 A"]
     status: todo
   - id: E08
-    title: "배경·소품·앵글 편집의 성공 범위"
-    question: "배경 교체, 소품 추가·제거, 카메라 앵글 변경 각각 10회 중 몇 회 성공하는가."
+    title: "제품·배경·앵글 편집의 성공 범위"
+    question: "제품 교체, 배경 교체, 카메라 앵글 변경 각각 10회 중 몇 회 성공하는가."
     feeds: ["9.1절"]
     status: todo
   - id: E09
-    title: "한국어·일본어 대사 품질과 싱크"
-    question: "한국어·일본어 대사가 알아들을 수 있게, 입 모양과 맞게 나오는가."
+    title: "영상 속 한국어·일본어 음성 품질"
+    question: "in_video 모드에서 한국어·일본어 내레이션이 알아들을 수 있게 나오는가."
     feeds: ["11.1절", "11.4절", "18.3절"]
-    status: todo
-  - id: E10
-    title: "3인 장면 합성"
-    question: "모모·단추·토토 3인 장면이 합성 스틸에서 출발하면 일관성을 유지하는가."
-    feeds: ["7.3절"]
     status: todo
   - id: E11
     title: "연장·업로드 API의 최신 지원 여부"
     question: "연장은 한 번에 몇 초, 총 몇 초까지 되는가. YouTube 업로드 API의 할당량과 AI 공시 필드는 무엇인가."
     feeds: ["10.1절", "12.4절", "12.5절"]
+    status: todo
+  - id: E12
+    title: "제품 레퍼런스의 형태·색·라벨 유지"
+    question: "본인 제품 사진을 레퍼런스로 넣었을 때 형태, 색, 라벨 글자가 15초 동안 유지되는가."
+    secondary_claim: "Google Cloud 출시 글은 제품과 브랜드 요소의 일관성이 좋아졌다고 한다. 라벨 글자의 프레임별 정확도는 약속하지 않는다."
+    feeds: ["5.3절", "7.2절", "7.4절", "12.1절"]
+    status: todo
+  - id: E13
+    title: "한국어 내레이션 경로: 영상 속 음성과 Gemini TTS"
+    question: "gemini-3.8-flash-tts 의 한국어 품질은 어떤가. 15초 구간에 길이를 맞추기 쉬운 쪽은 어디인가. 단가는 얼마인가."
+    feeds: ["11.2절", "18.2절", "configs/production_spec.yaml 의 narration.mode"]
+    status: todo
+  - id: E14
+    title: "비교 장면: 두 제품을 한 화면에"
+    question: "두 제품을 한 화면에 놓았을 때 외형이 서로 섞이지 않는가."
+    feeds: ["7.3절"]
+    status: todo
+  - id: E15
+    title: "소재 추출의 사실 보존"
+    question: "블로그 글과 영상 대본에서 뽑은 source_brief 가 사실을 빠뜨리거나 지어내지 않는가."
+    feeds: ["6.2절", "8.3절"]
     status: todo

@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from acs.production import omni_client
+from ass.production import omni_client
 
 MODEL = "gemini-omni-1.2-flash"
 
@@ -32,9 +32,9 @@ def test_edit_request_carries_previous_interaction_id():
 
 
 def test_reference_images_come_before_text_and_are_stripped_from_summary(tmp_path):
-    img = tmp_path / "momo.png"
+    img = tmp_path / "serum.png"
     img.write_bytes(b"\x89PNG fake")
-    req = omni_client.build_request("Momo walks.", model=MODEL, duration_s=5, image_paths=[img])
+    req = omni_client.build_request("The bottle rotates.", model=MODEL, duration_s=5, image_paths=[img])
     assert [i["type"] for i in req["input"]] == ["image", "text"]
     assert req["input"][0]["mime_type"] == "image/png"
     assert "data" not in omni_client.summarize_request(req)["input"][0]

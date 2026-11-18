@@ -1,7 +1,7 @@
 import pytest
 
-from acs.guards.cost_guard import BudgetExceeded, BudgetGuard, UnknownPrice, estimate_video_cost
-from acs.policy import load_policy, policy_hash
+from ass.guards.cost_guard import BudgetExceeded, BudgetGuard, UnknownPrice, estimate_video_cost
+from ass.policy import load_policy, policy_hash
 
 
 def test_policy_hash_ignores_key_order_but_not_values():

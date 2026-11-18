@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "acs"
-version = "0.1.0"
-description = "Gemini Omni로 구축하는 자율 Shorts 스튜디오 — 책 실습 코드"
+name = "ass"
+version = "0.2.0"
+description = "ASS (Autonomous Shorts Studio) — 『Gemini Omni로 구축하는 자율 Shorts 스튜디오』의 시스템"
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.6",
@@ -14,11 +14,14 @@ dependencies = [
     "python-dotenv>=1.0",
 ]
 
+[project.scripts]
+ass = "ass.cli:main"
+
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff"]
 
 [tool.setuptools.packages.find]
-include = ["acs*"]
+include = ["ass*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

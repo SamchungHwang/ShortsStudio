@@ -27,6 +27,15 @@ image:
   id: gemini-nano-banana-2.1
   max_reference_images: 14
   max_consistent_characters: 4
+  usage: "제품 레퍼런스 시트"
+
+speech:
+  id: gemini-3.8-flash-tts     # status: official (Gemini API 음성 생성 문서, 2026-11-17 확인)
+  usage: "한국어 내레이션"
+  price: null                  # status: unverified
+  notes:
+    - "한국어 품질과 길이 맞춤은 실험 E13에서 확인한다"
+    - "호출 코드는 11장에서 작성한다. 아직 저장소에 없다"
 
 music:
   name: "Lyria 3.5"

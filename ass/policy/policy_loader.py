@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from acs.settings import CONFIG_DIR, load_yaml
+from ass.settings import CONFIG_DIR, load_yaml
 
 
 def policy_hash(doc: dict[str, Any]) -> str:

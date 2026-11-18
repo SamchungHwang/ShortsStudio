@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from acs.policy import load_policy
-from acs.production.character_bible import load_character_bible
-from acs.production.scene_spec import load_scene
-from acs.settings import EXAMPLE_DIR
+from ass.policy import load_policy
+from ass.production.product_bible import load_product_bible
+from ass.production.scene_spec import load_scene
+from ass.settings import EXAMPLE_DIR
 
 
 @pytest.fixture(scope="session")
@@ -20,9 +20,10 @@ def models_config() -> dict:
 
 @pytest.fixture(scope="session")
 def bible():
-    return load_character_bible(EXAMPLE_DIR / "character_bible.yaml")
+    return load_product_bible(EXAMPLE_DIR / "product_bible.yaml")
 
 
 @pytest.fixture(scope="session")
 def scenes():
-    return [load_scene(p) for p in sorted((EXAMPLE_DIR / "scenes").glob("scene_*.yaml"))]
+    folder = EXAMPLE_DIR / "episodes" / "product_intro"
+    return [load_scene(p) for p in sorted(folder.glob("scene_*.yaml"))]

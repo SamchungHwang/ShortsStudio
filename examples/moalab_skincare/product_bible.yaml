@@ -1,0 +1,34 @@
+# product_bible.yaml — 초안 v0.1 (5.1절에서 확정)
+# 모든 제품과 브랜드는 가상이다. facts 의 source 가 "가상 제품 설정"인 것은 예제용 설정이며,
+# 내 제품으로 바꿀 때는 상세 페이지, 성분표, 시험 성적서 같은 실제 근거를 적는다.
+version: "0.1"
+products:
+  moalab_aqua_serum:
+    brand: MOALAB
+    name_ko: 모아랩 수분 세럼
+    name_en: MOALAB Aqua Serum
+    appearance_en: "a 30 ml frosted glass dropper bottle with a white cap and a pale blue label reading MOALAB"
+    is_own: true
+    facts:
+      - {id: serum_volume, text_ko: "용량 30ml", source: "가상 제품 설정"}
+      - {id: serum_texture, text_ko: "묽은 젤 제형", source: "가상 제품 설정"}
+      - {id: serum_fragrance, text_ko: "무향", source: "가상 제품 설정"}
+      - {id: serum_usage, text_ko: "세안 후 두세 방울을 손바닥에 덜어 얼굴에 가볍게 두드린다", source: "가상 제품 설정"}
+  moalab_gel_sunscreen:
+    brand: MOALAB
+    name_ko: 모아랩 젤 선크림
+    name_en: MOALAB Gel Sunscreen
+    appearance_en: "a 50 ml slim white squeeze tube with a pale blue cap and a pale blue label reading MOALAB"
+    is_own: true
+    facts:
+      - {id: gel_sun_volume, text_ko: "용량 50ml", source: "가상 제품 설정"}
+      - {id: gel_sun_texture, text_ko: "투명한 젤 제형", source: "가상 제품 설정"}
+  haruon_cream_sunscreen:
+    brand: HARUON
+    name_ko: 하루온 크림 선크림
+    name_en: HARUON Cream Sunscreen
+    appearance_en: "a 50 ml short beige squeeze tube with an orange cap and an orange label reading HARUON"
+    is_own: false               # 타사 제품. 이 제품이 나오는 장면은 사람 승인을 거친다
+    facts:
+      - {id: cream_sun_volume, text_ko: "용량 50ml", source: "가상 제품 설정"}
+      - {id: cream_sun_texture, text_ko: "흰색 크림 제형", source: "가상 제품 설정"}
