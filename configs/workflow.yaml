@@ -1,0 +1,73 @@
+# workflow.yaml — 한 편이 만들어지는 여섯 단계 (1.2절). `ass map` 이 이 파일을 읽는다.
+# commands 의 각 명령이 실제로 있는지는 ass/cli.py 에서 확인해 표시한다.
+version: "2026-11-18"
+stages:
+  - id: source
+    name_ko: 소재
+    question_ko: 무엇에 대해 말할 것인가
+    inputs: [아이디어 한 줄, 본인 블로그 글, 본인 영상의 대본]
+    outputs: [source_brief]
+    commands: [brief]
+    models: [text]
+    guards: [본인 소유 확인]
+    chapters: "3, 6"
+  - id: script
+    name_ko: 대본
+    question_ko: 15초 세 장면에 무엇을 보여 주고 무엇을 말할 것인가
+    inputs: [source_brief, product_bible]
+    outputs: [scene_spec, 영어 프롬프트, 내레이션 대본]
+    commands: [script, compile]
+    models: [text]
+    guards: [제품 표현 가드, 사실 근거 검사, 형식·길이 정책]
+    chapters: "3, 6"
+  - id: reference
+    name_ko: 제품 레퍼런스
+    question_ko: 제품이 장면마다 같은 모습으로 나오게 하려면
+    inputs: [제품 사진, product_bible]
+    outputs: [레퍼런스 시트, reference_manifest]
+    commands: [sheet]
+    models: [image]
+    guards: [비용 가드]
+    chapters: "5, 7"
+  - id: render
+    name_ko: 장면 생성
+    question_ko: 초안을 싸게 뽑고, 채점하고, 고쳐 쓴다
+    inputs: [영어 프롬프트, 레퍼런스 시트]
+    outputs: [장면 영상, api_run, quality_report]
+    commands: [render, score, edit]
+    models: [video]
+    guards: [비용 가드, 타사 제품 장면 승인, 편집 횟수 상한]
+    chapters: "2, 4, 7~10"
+  - id: audio
+    name_ko: 오디오
+    question_ko: 내레이션과 배경 음악
+    inputs: [내레이션 대본]
+    outputs: [내레이션 음성, BGM]
+    commands: [voice, music]
+    models: [speech, music]
+    guards: [비용 가드, 음악 출처 통제]
+    chapters: "11"
+  - id: release
+    name_ko: 조립·업로드
+    question_ko: 한 편으로 묶어 내보낸다
+    inputs: [장면 영상, 내레이션 음성, BGM, 자막 문구]
+    outputs: [완성 영상, 자막 파일, release_manifest]
+    commands: [assemble, approve, publish]
+    models: []
+    guards: [사람 승인, AI 공시 판단, 원본성 로그]
+    chapters: "4, 12, 17"
+
+# 명령 한 줄 설명. `ass map` 과 콘솔(ass console)이 함께 쓴다.
+command_notes:
+  brief: "아이디어, 블로그 글, 영상 대본을 소재 요약으로 정리한다 (6장에서 만든다)"
+  script: "소재 요약에서 대본과 장면 사양 초안을 만든다 (6장에서 만든다)"
+  compile: "장면 사양을 프롬프트와 내레이션 대본으로 바꾸고 형식·길이·표현·근거를 검사한다. 비용 없음"
+  sheet: "제품 사진에서 레퍼런스 시트를 만든다 (5장에서 만든다)"
+  render: "장면을 Gemini Omni Flash로 생성하고 실행 기록을 남긴다. 비용이 든다"
+  score: "초안을 채점해 통과·편집·사람 검토를 판정한다 (8장에서 만든다)"
+  edit: "대화형 편집으로 고치고, 안 되면 다시 뽑는다 (9장에서 만든다)"
+  voice: "내레이션 음성을 만든다 (11장에서 만든다)"
+  music: "배경 음악을 만든다 (11장에서 만든다)"
+  assemble: "장면을 이어 붙이고 자막과 오디오를 얹는다 (4·12장에서 만든다)"
+  approve: "승인 대기 목록을 보고 승인하거나 돌려보낸다 (9·21장에서 만든다)"
+  publish: "발행 기록을 만들고 승인 뒤 업로드한다 (12·17장에서 만든다)"

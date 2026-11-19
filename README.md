@@ -23,21 +23,41 @@
             └──────────────────────────────────────────────────────────────────┘
 ```
 
-## 시작하기 (Windows PowerShell)
+## 시작하기 (Windows, Anaconda Prompt)
 
-```powershell
+ASS는 전용 Anaconda 환경 `ass` 안에서 돌린다.
+
+```bat
+conda create -n ass python=3.13 -y
+conda activate ass
 cd C:\AI\ShortsStudio
-py -3.11 -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"       # ass 명령이 설치된다
-copy .env.example .env        # GEMINI_API_KEY 를 넣는다
-pytest                        # API 없이 도는 단위 테스트
-ass compile                   # 세 장면을 프롬프트와 내레이션 대본으로 컴파일 (비용 없음)
-ass render --dry-run          # 첫 호출의 요청 확인 (비용 없음)
-ass render --scene 1          # 15초 한 장면 생성 (720p 기준 추정 $1.05)
+pip install -e ".[dev]"       :: ass 명령이 설치된다
+copy .env.example .env        :: GEMINI_API_KEY 를 넣는다 (2장)
+pytest                        :: API 없이 도는 단위 테스트
+ass map --write               :: 여섯 단계 공정 지도와 명령의 상태 (비용 없음)
+ass stack                     :: 기술 스택과 확인 상태 (비용 없음)
+ass console                   :: 콘솔(화면)을 연다. ASS_console.bat 을 두 번 눌러도 된다
+ass compile                   :: 세 장면을 프롬프트와 내레이션 대본으로 컴파일 (비용 없음)
+ass render --dry-run          :: 첫 호출의 요청 확인 (비용 없음)
+ass render --scene 1          :: 15초 한 장면 생성 (720p 기준 추정 $1.05)
 ```
 
-설치하지 않고 실행하려면 `python -m ass compile` 또는 `python scripts\compile_scenes.py` 를 쓴다.
+새 창을 열 때마다 `conda activate ass` 를 먼저 한다. 프롬프트 앞이 `(ass)` 인지 확인한다.
+환경을 처음부터 다시 만들려면 `conda remove -n ass --all` 뒤에 위 순서를 반복한다.
+
+## 콘솔
+
+`ass console` 은 여섯 단계를 화면에서 실행하는 창이다. 편과 장면, 단계와 명령을 고르고 [실행]을 누른다.
+
+- 콘솔은 `python -m ass <명령>` 을 대신 실행하고 출력을 보여 줄 뿐이다. 새 기능은 없다.
+  콘솔에서 되는 일은 모두 명령줄에서도 되고, 가드와 예산 상한과 실행 기록도 똑같이 적용된다.
+- 아직 없는 명령은 고를 수는 있지만 실행되지 않고, 어느 장에서 만드는지 알려 준다.
+- “호출하지 않고 요청만 확인”이 기본으로 켜져 있다. 끄고 실행하면 추정 비용을 보여 주고 확인을 받는다.
+  추정 비용이 실행 예산을 넘으면 묻지 않고 거절한다.
+- 탭: 프롬프트·내레이션 미리보기, 산출물 목록, 기술 스택, 실행 로그.
+- tkinter 가 들어 있는 Python 이 필요하다. `conda create` 로 만든 `ass` 환경에는 들어 있다.
+- `ASS_console.bat` 은 `ass` 환경을 켠 다음 콘솔을 실행한다.
+- 3부에서 에이전트는 콘솔이 아니라 명령을 부른다. 콘솔은 사람을 위한 것이다.
 
 ## 명령
 
@@ -45,6 +65,9 @@ ass render --scene 1          # 15초 한 장면 생성 (720p 기준 추정 $1.0
 
 | 명령 | 하는 일 | 장 | 상태 |
 |---|---|---|---|
+| `ass console` | 콘솔(화면). 아래 명령을 화면에서 실행 | 1 | 있음 (작성 환경에 tkinter 가 없어 실제 창은 아직 확인 못 함) |
+| `ass map` | 여섯 단계 공정 지도와 명령의 상태. `--write` 로 `docs/workflow_map.md` 저장 | 1 | 있음 |
+| `ass stack` | 기술 스택을 확인된 것과 확인되지 않은 것으로 나눠 표시 | 1 | 있음 |
 | `ass compile` | 장면 사양 → 프롬프트·내레이션 대본. 형식·길이·가드 검사 | 6 | 있음 |
 | `ass render` | 장면을 Omni로 생성하고 실행 기록을 남김 | 2·4 | 있음 (실제 호출은 아직 안 해 봄) |
 | `ass assemble` | 장면을 이어 붙이고 자막과 오디오를 얹음 | 4·12 | 없음 |
@@ -69,7 +92,10 @@ ass render --scene 1          # 15초 한 장면 생성 (720p 기준 추정 $1.0
 
 | 경로 | 내용 | 장 |
 |---|---|---|
-| `ass/cli.py` | `ass` 명령 진입점 | 2·6 |
+| `ass/cli.py` | `ass` 명령 진입점 | 1·2·6 |
+| `ass/workflow.py` | 공정 지도와 기술 스택 표시 | 1.1·1.2절 |
+| `ass/console.py`, `ass/console_model.py` | 콘솔의 화면과 판단 부분 | 1.2절 |
+| `ASS_console.bat` | 콘솔을 여는 바로 가기 (Windows) | 1.2절 |
 | `ass/production/source_brief.py` | 소재 입력 형식(아이디어, 본인 블로그, 본인 영상 대본) | 6.2절 |
 | `ass/production/product_bible.py` | 제품 외형과 말해도 되는 사실 | 5.1절 |
 | `ass/production/scene_spec.py` | 장면 사양 스키마(화면, 내레이션, 자막, 근거) | 6.3절 |
@@ -80,11 +106,13 @@ ass render --scene 1          # 15초 한 장면 생성 (720p 기준 추정 $1.0
 | `ass/guards/cost_guard.py` | 추정 비용과 예산 가드 | 4·8장 |
 | `ass/policy/policy_loader.py` | 정책 로더와 policy_hash | 14장 |
 | `configs/models.yaml` | 기술 스택, 사양, 단가, 확인 상태 | 1·2장, 부록 A |
+| `configs/workflow.yaml` | 한 편이 만들어지는 여섯 단계 | 1.2절 |
 | `configs/production_spec.yaml` | 세 형식의 장면 뼈대, 길이, 내레이션 모드, 자막 길이 | 3·6장 |
 | `configs/claims_lexicon.yaml` | 제품 표현 가드 사전(한·영). 초기 가정값 | 6.5절 |
 | `configs/budget_policy.yaml` | 실행·편당 예산 상한 | 4.3·8.5절 |
 | `examples/moalab_skincare/` | series_bible, product_bible, source_brief, 제품 설명 편 장면 사양 3개 | 3·5·6장 |
 | `experiments/` | 선행 검증 실험 목록과 기록 | 부록 A |
+| `docs/workflow_map.md` | `ass map --write` 가 만드는 공정 지도 | 1장 |
 | `docs/chapter_map.md` | 장 ↔ 코드 ↔ 기존 원고 대응표 | 부록 D |
 | `outputs/` | `compiled/`(컴파일 결과), `renders/`(영상과 실행 기록) | — |
 
@@ -102,8 +130,8 @@ ass render --scene 1          # 15초 한 장면 생성 (720p 기준 추정 $1.0
 
 ## 지금 상태
 
-- 실행해 확인한 것: 단위 테스트 42개, `ass compile`, `ass render --dry-run`.
-- 아직 실행하지 않은 것: 실제 API 호출. `omni_client.py` 는 공식 문서의 호출 형태를 따랐지만
+- 실행해 확인한 것: 단위 테스트 65개, `ass map`, `ass stack`, `ass compile`, `ass render --dry-run`.
+- 아직 실행하지 않은 것: 콘솔의 실제 창(가짜 tkinter 로 흐름만 테스트했다), 실제 API 호출. `omni_client.py` 는 공식 문서의 호출 형태를 따랐지만
   `duration` 문자열 형식과 텍스트 입력 항목의 키는 실험 E00에서 확정해야 한다.
 - 내레이션 모드는 `tts` 로 가정했다. 실험 E13 뒤에 확정한다.
 - `claims_lexicon.yaml` 은 초기 가정값이다. 통과했다고 광고 표현이 적법하다는 뜻이 아니다.

@@ -5,7 +5,7 @@
 
 | 장 | 모듈·파일 | 장의 산출물 | 기존 원고(`autonomous-content-studio`) | 상태 |
 |---|---|---|---|---|
-| 1 | `README.md`, `docs/chapter_map.md` | workflow_map.md, project_readme.md | README | 있음(초안) |
+| 1 | `ass/workflow.py`, `ass/console.py`, `ass/console_model.py`, `ass/cli.py` (`ass map`, `ass stack`, `ass console`), `configs/workflow.yaml`, `configs/models.yaml` | docs/workflow_map.md, README.md | README, 1·2장의 자율화 레벨 | 있음 |
 | 2 | `ass/production/omni_client.py`, `run_record.py`, `ass/cli.py` (`ass render`) | setup.md, first_render.mp4, api_run.json | 없음(자리표시자) | 있음(미실행) |
 | 3 | `examples/moalab_skincare/`, `configs/production_spec.yaml` 의 formats | series_bible.md, 장면 사양 3개 | `configs/production_spec.yaml` 의 templates | 있음(초안) |
 | 4 | `ass/guards/cost_guard.py` | draft_45s.mp4, cost_ledger.csv, error_log.md | `acs/guards/cost_guard.py` | 일부 |

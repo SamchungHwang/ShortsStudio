@@ -1,48 +1,106 @@
-# models.yaml — 기술 스택과 확인 상태 (policy-as-data)
-# status 값: official(공식 문서 확인) | experiment(직접 실험 확인) | assumed(가정·설계) | unverified(미확인)
-# 미확인 항목은 코드가 값으로 쓰지 않는다. 실험으로 확인되면 experiments/registry.yaml 의 기록 ID를 evidence 에 적는다.
-verified_on: "2026-11-17"
+# models.yaml — 기술 스택과 확인 상태 (policy-as-data). 1.1절의 표와 `ass stack` 이 이 파일을 읽는다.
+# confirmed  : 공식 문서·발표로 확인한 것 (source 에 근거를 적는다)
+# unverified : 아직 확인하지 못한 것. 코드가 값으로 쓰지 않는다.
+# 실험으로 확인되면 experiments/registry.yaml 의 기록 ID를 근거로 적고 confirmed 로 옮긴다.
+verified_on: "2026-11-18"
 
 video:
+  name: Gemini Omni Flash 1.2
+  role_ko: 영상 생성과 대화형 편집
   id: gemini-omni-1.2-flash
   api: interactions            # client.interactions.create / POST v1beta/interactions
+  chapters: "2, 4, 7~10"
   duration_s: {min: 3, max: 15, step: 1}
   aspect_ratios: ["9:16", "16:9"]
   resolutions:
     native: ["360p", "720p"]
     upscaled: ["1080p", "4k"]
   price_usd_per_second:
-    "720p": 0.07               # status: official
-    "360p": null               # status: unverified
-    "1080p": null              # status: unverified (업스케일 추가 비용 포함 여부 미확인)
-    "4k": null                 # status: unverified
+    "720p": 0.07
+    "360p": null
+    "1080p": null
+    "4k": null
   reference_videos: {max_count: 3, max_seconds_each: 3}
   negative_prompt_param: false # 제외 지시는 프롬프트 본문에 자연어로
-  notes:
-    - "음성 편집 미지원, 영어 외 언어는 평가되지 않음 (1.1 기준 가이드)"
-    - "오디오 레퍼런스 업로드는 공개 API에서 미지원"
-    - "response_format.duration 의 문자열 형식(\"15s\")은 2차 자료로만 확인. 실험 E00에서 확정한다."
+  confirmed:
+    - "한 번에 최대 15초 생성 (1.1은 10초)"
+    - "영상과 함께 오디오 생성, previous_interaction_id 로 대화형 편집"
+    - "720p 초당 $0.07"
+    - "해상도 360p·720p, 업스케일 1080p·4k / 화면비 9:16·16:9"
+    - "레퍼런스 영상 최대 3개, 각 3초"
+    - "모든 생성 영상에 SynthID 워터마크"
+    - "negative_prompt, system instruction, temperature 없음"
+    - "영어만 온전히 지원, 다른 언어는 평가되지 않음 (1.1 기준 가이드)"
+    - "음성 편집과 오디오 레퍼런스 미지원, YouTube 링크 입력 불가"
+  unverified:
+    - "response_format.duration 의 문자열 형식 (E00)"
+    - "720p 외 해상도의 단가, 업스케일 방식과 비용 (E06)"
+    - "편집 호출의 청구액 (E04)"
+    - "레퍼런스 이미지 상한 (E01), 제품 라벨 유지 (E12)"
+    - "한국어 음성 품질 (E09)"
+  source: "Gemini API Omni 가이드(예제는 1.1 기준), Google Cloud 블로그 1.2 출시 글"
 
 image:
+  name: Nano Banana 2.1
+  role_ko: 제품 레퍼런스 시트
   id: gemini-nano-banana-2.1
+  api: interactions
+  chapters: "5"
   max_reference_images: 14
+  max_objects: 10
   max_consistent_characters: 4
-  usage: "제품 레퍼런스 시트"
+  confirmed:
+    - "레퍼런스 이미지 최대 14장"
+    - "사물 10개까지 높은 충실도, 캐릭터 4명까지 일관성"
+  unverified:
+    - "image_size 대소문자 규칙, 레퍼런스 토큰 단가 (E07)"
+  source: "Gemini API 모델 페이지 gemini-nano-banana-2.1"
 
 speech:
-  id: gemini-3.8-flash-tts     # status: official (Gemini API 음성 생성 문서, 2026-11-17 확인)
-  usage: "한국어 내레이션"
-  price: null                  # status: unverified
-  notes:
-    - "한국어 품질과 길이 맞춤은 실험 E13에서 확인한다"
-    - "호출 코드는 11장에서 작성한다. 아직 저장소에 없다"
+  name: Gemini TTS
+  role_ko: 한국어 내레이션
+  id: gemini-3.8-flash-tts
+  api: generate_content        # 문서 예제 기준
+  chapters: "11, 18"
+  price: null
+  confirmed:
+    - "모델 ID gemini-3.8-flash-tts, 단일·다중 화자 음성 생성"
+  unverified:
+    - "한국어 품질, 15초 구간 길이 맞춤, 단가 (E13)"
+  source: "Gemini API 음성 생성 문서"
 
 music:
-  name: "Lyria 3.5"
-  id: null                     # status: unverified — 모델 ID를 공식 문서에서 확인한 뒤 채운다
-  usage: "연주곡 BGM만"
+  name: Lyria 3.5
+  role_ko: 배경 음악
+  id: lyria-3.5
+  clip_id: lyria-3-clip-preview
+  api: interactions
+  chapters: "11"
+  price: null
+  confirmed:
+    - "모델 ID lyria-3.5 (가사와 보컬이 있는 전체 길이의 곡), lyria-3-clip-preview (30초 클립)"
+    - "출력은 MP3"
+  unverified:
+    - "보컬 없는 연주곡만 안정적으로 얻는 방법, 단가"
+  source: "Gemini API 음악 생성 문서, Lyria 3.5 모델 페이지"
+
+text:
+  name: Gemini 텍스트 모델
+  role_ko: 소재 요약과 대본 초안
+  id: null
+  chapters: "6"
+  confirmed: []
+  unverified:
+    - "쓸 모델의 ID와 단가"
+  source: "—"
 
 fallback:
-  name: "Veo 3.1 (클라우드)"
+  name: Veo 3.1 (클라우드)
+  role_ko: 대체 경로 (부록 B에서만)
+  id: null
+  chapters: "부록 B"
   durations_s: [4, 6, 8]
-  scope: "부록 B에서만"
+  confirmed:
+    - "Gemini API의 Veo 3.1 프리뷰는 2026-10-22 종료"
+  unverified: []
+  source: "프로젝트 지침의 확인 목록"

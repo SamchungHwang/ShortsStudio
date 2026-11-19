@@ -1,8 +1,11 @@
 """ass — ASS(Autonomous Shorts Studio)의 명령줄 진입점.
 
-지금 있는 명령은 compile 과 render 둘이다. 나머지 명령은 해당 장에서 추가한다
-(전체 목록과 상태는 README 와 시스템 정의서 6절).
+지금 있는 명령은 map, stack, compile, render 와 화면으로 같은 일을 하는 console 이다. 나머지 명령은 해당 장에서 추가한다
+(전체 목록과 상태는 `ass map`, README, 시스템 정의서 6절).
 
+    ass console                      # 콘솔(화면). 아래 명령을 화면에서 실행한다
+    ass map                          # 여섯 단계 공정 지도와 명령의 상태
+    ass stack                        # 기술 스택과 확인 상태
     ass compile                      # 장면 사양 → 프롬프트·내레이션 대본. 비용 없음
     ass render --dry-run             # 첫 호출의 요청 확인. 비용 없음
     ass render --scene 1             # 15초 한 장면 생성
@@ -21,9 +24,10 @@ from ass.policy import load_policy
 from ass.production import omni_client
 from ass.production.product_bible import load_product_bible
 from ass.production.run_record import RunRecord
-from ass.production.scene_compiler import compile_scene
+from ass.production.scene_compiler import CompileError, compile_scene
 from ass.production.scene_spec import check_episode, load_scene
 from ass.settings import EXAMPLE_DIR, OUTPUT_DIR, ROOT
+from ass.workflow import check_workflow, load_workflow, render_markdown, render_stack, render_text
 
 
 def _setup() -> None:
@@ -48,6 +52,39 @@ def _load_episode(episode: str):
     if not paths:
         raise SystemExit(f"장면 사양이 없다: {folder}")
     return [load_scene(p) for p in paths]
+
+
+def cmd_map(args: argparse.Namespace) -> int:
+    """여섯 단계 공정 지도를 보여 준다. --write 를 주면 docs/workflow_map.md 를 만든다."""
+    workflow = load_workflow()
+    models = load_policy("models").data
+    problems = check_workflow(workflow, models)
+    for problem in problems:
+        print(f"[공정 지도] {problem}")
+    available = available_commands()
+    print(render_text(workflow, available, models))
+    if args.write:
+        path = ROOT / "docs" / "workflow_map.md"
+        path.write_text(render_markdown(workflow, available, models), encoding="utf-8")
+        print(f"저장: {path}")
+    return 1 if problems else 0
+
+
+def cmd_stack(args: argparse.Namespace) -> int:
+    """기술 스택을 확인된 것과 확인되지 않은 것으로 나눠 보여 준다."""
+    print(render_stack(load_policy("models").data), end="")
+    return 0
+
+
+def cmd_console(args: argparse.Namespace) -> int:
+    """콘솔(화면)을 연다. 콘솔은 이 파일의 명령들을 대신 실행한다."""
+    try:
+        from ass import console
+    except ImportError as exc:      # tkinter 가 빠진 Python
+        print(f"콘솔을 열 수 없다: {exc}\n"
+              "tkinter 가 포함된 Python 이 필요하다. 명령줄에서는 ass map, ass compile, ass render 를 그대로 쓸 수 있다.")
+        return 5
+    return console.main(available_commands())
 
 
 def cmd_compile(args: argparse.Namespace) -> int:
@@ -173,6 +210,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"ass {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    g = sub.add_parser("console", help="콘솔(화면)을 연다")
+    g.set_defaults(func=cmd_console)
+
+    m = sub.add_parser("map", help="여섯 단계 공정 지도와 명령의 상태")
+    m.add_argument("--write", action="store_true", help="docs/workflow_map.md 로 저장")
+    m.set_defaults(func=cmd_map)
+
+    s = sub.add_parser("stack", help="기술 스택과 확인 상태")
+    s.set_defaults(func=cmd_stack)
+
     c = sub.add_parser("compile", help="장면 사양 → 프롬프트·내레이션 대본 (비용 없음)")
     c.add_argument("--episode", default="product_intro", help="예제 폴더의 episodes 아래 이름")
     c.set_defaults(func=cmd_compile)
@@ -186,10 +233,23 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def available_commands() -> set[str]:
+    """실제로 등록된 명령 이름. 공정 지도의 '있음/없음' 표시는 여기서 나온다."""
+    parser = build_parser()
+    for action in parser._subparsers._group_actions:  # noqa: SLF001
+        if isinstance(action, argparse._SubParsersAction):  # noqa: SLF001
+            return set(action.choices)
+    return set()
+
+
 def main(argv: list[str] | None = None) -> int:
     _setup()
     args = build_parser().parse_args(argv)
-    return int(args.func(args))
+    try:
+        return int(args.func(args))
+    except CompileError as exc:      # 가드가 막은 것은 오류가 아니라 정상 동작이다
+        print(f"[막힘] {exc}")
+        return 4
 
 
 if __name__ == "__main__":
