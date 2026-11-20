@@ -1,0 +1,40 @@
+{
+  "scene_id": "serum_s02",
+  "duration_s": 15,
+  "aspect_ratio": "9:16",
+  "prompt": "Vertical 9:16 video, 15 seconds, one continuous scene. Clean realistic product video, soft natural daylight, shallow depth of field, calm and minimal.\nSetting: The same bright minimal bathroom counter by a window, white tiles, a folded towel.\nProducts (keep shape, color and label exactly as described):\n- MOALAB Aqua Serum: a 30 ml frosted glass dropper bottle with a white cap and a pale blue label reading MOALAB\nAction:\n[0-4s] A hand places the MOALAB Aqua Serum bottle on the center of the counter with the label facing the camera. Camera: static product shot, then slow push-in.\n[4-10s] The dropper is lifted out and one clear, thin gel drop slowly falls back into the bottle. Camera: macro shot on the dropper tip, shallow depth of field.\n[10-15s] The bottle slowly rotates one full turn on the counter, showing its frosted glass and white cap. Camera: static, eye-level.\nAudio: Quiet bathroom room tone, a soft glass clink as the bottle is set down, one tiny liquid drop.\nConstraints: No human faces. No added text overlays, captions or subtitles (the product label itself stays). No background music. No speech, narration or voice-over.",
+  "prompt_sha256": "b49ae43bf8bbc5ae2521708f6b5cf8007e5fab861cf325a1c1adcc3ae99f5a54",
+  "narration_mode": "tts",
+  "narration": [
+    {
+      "start_s": 0,
+      "end_s": 4,
+      "text": "모아랩 수분 세럼.",
+      "caption": "모아랩 수분 세럼",
+      "evidence": []
+    },
+    {
+      "start_s": 4,
+      "end_s": 10,
+      "text": "묽은 젤 제형이고 향이 없다.",
+      "caption": "묽은 젤, 무향",
+      "evidence": [
+        "serum_texture",
+        "serum_fragrance"
+      ]
+    },
+    {
+      "start_s": 10,
+      "end_s": 15,
+      "text": "용량은 30밀리리터.",
+      "caption": "30ml",
+      "evidence": [
+        "serum_volume"
+      ]
+    }
+  ],
+  "needs_human_approval": false,
+  "compiler_version": "0.2.0",
+  "lexicon_version": "2026-11-17-draft",
+  "product_bible_version": "0.1"
+}

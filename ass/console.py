@@ -11,6 +11,7 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -27,6 +28,9 @@ FONT_TITLE = ("맑은 고딕", 18, "bold")
 FONT_MONO = ("Consolas", 10)
 NAVY = "#1F4E79"
 GREY = "#666666"
+GREEN = "#2E7D32"
+RED = "#C62828"
+AMBER = "#B26A00"
 MAX_LOG_LINES = 1000
 
 
@@ -56,7 +60,10 @@ class ConsoleApp:
         self.summary = tk.StringVar()
         self.hint = tk.StringVar()
         self.notice = tk.StringVar()
+        self.run_text = tk.StringVar(value="대기 중")
+        self.started_at: float | None = None
         self.log_count = tk.StringVar(value="로그 0줄")
+        self.file_rows: list = []
 
         self._build_menu()
         self._build_header()
@@ -137,8 +144,13 @@ class ConsoleApp:
         self.run_button.grid(row=3, column=4, padx=4)
         self.stop_button = ttk.Button(box, text="멈춤", command=self.stop, state="disabled")
         self.stop_button.grid(row=3, column=5, sticky="w", padx=4)
-        self.progress = ttk.Progressbar(box, mode="indeterminate", length=180)
-        self.progress.grid(row=3, column=6, padx=4)
+        # 실행 상태: 글자는 늘 보이고, 움직이는 막대는 실행 중에만 보인다.
+        state = ttk.Frame(box)
+        state.grid(row=3, column=6, padx=4, sticky="w")
+        self.run_label = tk.Label(state, textvariable=self.run_text, font=FONT_BOLD, fg=GREY,
+                                  width=24, anchor="w")
+        self.run_label.pack(anchor="w")
+        self.progress = ttk.Progressbar(state, mode="indeterminate", length=180)
 
         ttk.Checkbutton(box, text="호출하지 않고 요청만 확인 (비용 없음)", variable=self.dry_run,
                         command=self.on_selection).grid(row=4, column=1, columnspan=2, sticky="w", padx=6)
@@ -164,6 +176,26 @@ class ConsoleApp:
         box.pack(fill="both", expand=True, padx=12, pady=(4, 10))
         self.tabs = ttk.Notebook(box)
         self.tabs.pack(fill="both", expand=True)
+
+        files = ttk.Frame(self.tabs)
+        self.tabs.add(files, text="읽고 쓰는 파일")
+        self.files_tab = files
+        self.files_note = tk.StringVar()
+        ttk.Label(files, textvariable=self.files_note, foreground=GREY).pack(side="bottom", anchor="w", pady=4)
+        self.files_tree = ttk.Treeview(files, columns=("mark", "kind", "path", "what", "status"),
+                                       show="headings", height=8, selectmode="browse")
+        for col, title, width, anchor in (
+                ("mark", "", 36, "center"), ("kind", "구분", 56, "center"), ("path", "파일", 430, "w"),
+                ("what", "여기서 가져오는 것 / 여기에 쓰는 것", 420, "w"), ("status", "고친 때", 170, "w")):
+            self.files_tree.heading(col, text=title)
+            self.files_tree.column(col, width=width, anchor=anchor)
+        self.files_tree.tag_configure("write", foreground="#1F5FA8")
+        self.files_tree.tag_configure("missing", foreground="#B4501E")
+        files_scroll = ttk.Scrollbar(files, command=self.files_tree.yview)
+        self.files_tree.configure(yscrollcommand=files_scroll.set)
+        files_scroll.pack(side="right", fill="y")
+        self.files_tree.pack(fill="both", expand=True, side="left")
+        self.files_tree.bind("<Double-1>", lambda e: self.open_selected_file())
 
         self.preview_text = self._text_tab("프롬프트·내레이션")
         out = ttk.Frame(self.tabs)
@@ -288,10 +320,48 @@ class ConsoleApp:
                     cost = f" · 이번 실행 추정 ${amount:.2f}" if amount else " · 요청만 확인합니다"
                 except (UnknownPrice, ValueError) as exc:
                     cost = f" · {exc}"
-            self.hint.set(f"ass {command} — {note}{cost}")
+            summary = model.files_summary(model.command_files(command, self.episode.get(), self.scene.get()))
+            self.hint.set(f"ass {command} — {note}{cost}" + (f" · {summary}" if summary else ""))
         busy = self.process is not None
         self.run_button.configure(state="normal" if runnable and not busy else "disabled")
+        self.refresh_files()
         self.refresh_preview()
+
+    def refresh_files(self) -> None:
+        """고른 명령이 읽는 파일과 쓰는 파일을 실행 전에 보여 준다."""
+        command = self.command.get()
+        self.files_tree.delete(*self.files_tree.get_children())
+        try:
+            self.file_rows = model.command_files(command, self.episode.get(), self.scene.get())
+        except Exception as exc:
+            self.file_rows = []
+            self.files_note.set(f"파일 목록을 만들지 못했습니다: {exc}")
+            return
+        for i, row in enumerate(self.file_rows):
+            tag = "write" if row.kind == "씀" else ("missing" if not row.exists and "없어도" not in row.status else "")
+            self.files_tree.insert("", "end", iid=str(i), tags=(tag,) if tag else (),
+                                   values=(row.mark, row.kind, row.path, row.what, row.status))
+        if self.file_rows:
+            self.files_note.set(
+                f"ass {command} — {model.files_summary(self.file_rows)} · 두 번 누르면 파일이 열립니다 · "
+                "결과를 바꾸려면 ‘읽음’ 쪽 파일을 고칩니다. ‘씀’ 쪽은 실행할 때마다 다시 써집니다")
+        else:
+            self.files_note.set(f"ass {command} — 이 명령이 생기면 여기에 읽고 쓰는 파일이 나옵니다")
+
+    def open_selected_file(self) -> None:
+        selected = self.files_tree.selection()
+        if not selected:
+            return
+        row = self.file_rows[int(selected[0])]
+        target = ROOT / row.path
+        if row.exists:
+            self._open(target)
+        elif row.kind == "씀":
+            folder = target.parent
+            folder.mkdir(parents=True, exist_ok=True)
+            self._open(folder)
+        else:
+            messagebox.showwarning("파일이 없습니다", f"{row.path}\n\n이 파일을 먼저 만들어야 합니다.")
 
     def refresh_preview(self) -> None:
         episode = self.episode.get()
@@ -335,9 +405,18 @@ class ConsoleApp:
                 return
         self.pending = runs
         self.stop_requested = False
+        reads = [r for r in getattr(self, "file_rows", []) if r.kind == "읽음"]
+        if reads:
+            self._log(f"읽는 파일 {len(reads)}개:")
+            for r in reads:
+                self._log(f"  {r.mark} {r.path}" + ("" if r.exists else f"  ← {r.status}"))
         self.tabs.select(self.log_tab)
         self.run_button.configure(state="disabled")
         self.stop_button.configure(state="normal")
+        self.started_at = time.monotonic()
+        self._show_state("실행 중 · 0초", NAVY)
+        self.notice.set("실행 중")
+        self.progress.pack(anchor="w", pady=(2, 0))
         self.progress.start(12)
         self._start_next()
 
@@ -369,7 +448,13 @@ class ConsoleApp:
                     self._finished(int(value))
         except queue.Empty:
             pass
+        if self.process is not None and self.started_at is not None:
+            self.run_text.set(f"실행 중 · {int(time.monotonic() - self.started_at)}초")
         self.root.after(100, self._drain)
+
+    def _show_state(self, text: str, color: str) -> None:
+        self.run_text.set(text)
+        self.run_label.configure(fg=color)
 
     def _finished(self, code: int) -> None:
         self._log(f"[종료코드 {code}]")
@@ -381,8 +466,16 @@ class ConsoleApp:
             self._log(f"남은 실행 {len(self.pending)}건은 하지 않았습니다.")
         self.pending = []
         self.progress.stop()
+        self.progress.pack_forget()          # 멈춘 막대가 남아 있으면 아직 도는 것처럼 보인다
         self.stop_button.configure(state="disabled")
-        self.notice.set({0: "끝났습니다", 4: "가드가 막았습니다"}.get(code, f"종료코드 {code}"))
+        elapsed = time.monotonic() - self.started_at if self.started_at is not None else 0.0
+        self.started_at = None
+        text, color = model.finish_state(code, self.stop_requested)
+        self.notice.set(text)
+        stamp = f"{time.strftime('%H:%M:%S')} · {elapsed:.1f}초"
+        self._show_state(f"{model.finish_mark(code, self.stop_requested)} {text} · {stamp}",
+                         {"ok": GREEN, "guard": AMBER, "stop": AMBER, "fail": RED}[color])
+        self._log(f"── {text} ({stamp}) ──")
         self.refresh_outputs()
         self.on_selection()
 

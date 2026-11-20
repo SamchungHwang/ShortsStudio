@@ -33,6 +33,7 @@ conda activate ass
 cd C:\AI\ShortsStudio
 pip install -e ".[dev]"       :: ass 명령이 설치된다
 copy .env.example .env        :: GEMINI_API_KEY 를 넣는다 (2장)
+ass doctor                    :: 환경 점검. 빠진 것을 알려 준다
 pytest                        :: API 없이 도는 단위 테스트
 ass map --write               :: 여섯 단계 공정 지도와 명령의 상태 (비용 없음)
 ass stack                     :: 기술 스택과 확인 상태 (비용 없음)
@@ -54,7 +55,9 @@ ass render --scene 1          :: 15초 한 장면 생성 (720p 기준 추정 $1.
 - 아직 없는 명령은 고를 수는 있지만 실행되지 않고, 어느 장에서 만드는지 알려 준다.
 - “호출하지 않고 요청만 확인”이 기본으로 켜져 있다. 끄고 실행하면 추정 비용을 보여 주고 확인을 받는다.
   추정 비용이 실행 예산을 넘으면 묻지 않고 거절한다.
-- 탭: 프롬프트·내레이션 미리보기, 산출물 목록, 기술 스택, 실행 로그.
+- 탭: 읽고 쓰는 파일, 프롬프트·내레이션 미리보기, 산출물 목록, 기술 스택, 실행 로그.
+- “읽고 쓰는 파일” 탭은 고른 명령이 어떤 파일을 읽고 어디에 쓰는지를 실행 전에 보여 준다. 두 번 누르면 그 파일이 열린다.
+  실행하면 로그 첫머리에도 읽는 파일 목록이 찍힌다.
 - tkinter 가 들어 있는 Python 이 필요하다. `conda create` 로 만든 `ass` 환경에는 들어 있다.
 - `ASS_console.bat` 은 `ass` 환경을 켠 다음 콘솔을 실행한다.
 - 3부에서 에이전트는 콘솔이 아니라 명령을 부른다. 콘솔은 사람을 위한 것이다.
@@ -66,10 +69,11 @@ ass render --scene 1          :: 15초 한 장면 생성 (720p 기준 추정 $1.
 | 명령 | 하는 일 | 장 | 상태 |
 |---|---|---|---|
 | `ass console` | 콘솔(화면). 아래 명령을 화면에서 실행 | 1 | 있음 (작성 환경에 tkinter 가 없어 실제 창은 아직 확인 못 함) |
+| `ass doctor` | 환경 점검(Python, 환경 이름, 패키지, API 키, FFmpeg). `--write` 로 `docs/setup.md` 저장 | 2 | 있음 |
 | `ass map` | 여섯 단계 공정 지도와 명령의 상태. `--write` 로 `docs/workflow_map.md` 저장 | 1 | 있음 |
 | `ass stack` | 기술 스택을 확인된 것과 확인되지 않은 것으로 나눠 표시 | 1 | 있음 |
-| `ass compile` | 장면 사양 → 프롬프트·내레이션 대본. 형식·길이·가드 검사 | 6 | 있음 |
-| `ass render` | 장면을 Omni로 생성하고 실행 기록을 남김 | 2·4 | 있음 (실제 호출은 아직 안 해 봄) |
+| `ass compile` | 장면 사양 → 프롬프트·내레이션 대본·장면 설계표(storyboard.md). 형식·길이·가드 검사와 문법 주의 | 3·6 | 있음 |
+| `ass render` | 장면을 Omni로 생성하고 실행 기록을 남김. `--prompt` 로 장면 사양 없이도 생성. `--duration`, `--resolution`, `--aspect`, `--delivery`, `--name` | 2·4 | 있음 (실제 호출은 아직 안 해 봄) |
 | `ass assemble` | 장면을 이어 붙이고 자막과 오디오를 얹음 | 4·12 | 없음 |
 | `ass brief` | 아이디어, 블로그 글, 영상 대본을 소재 요약으로 정리 | 6 | 스키마만 있음 |
 | `ass script` | 소재 요약에서 대본과 장면 사양 초안을 만듦 | 6 | 없음 |
@@ -94,6 +98,8 @@ ass render --scene 1          :: 15초 한 장면 생성 (720p 기준 추정 $1.
 |---|---|---|
 | `ass/cli.py` | `ass` 명령 진입점 | 1·2·6 |
 | `ass/workflow.py` | 공정 지도와 기술 스택 표시 | 1.1·1.2절 |
+| `ass/doctor.py` | 환경 점검 | 2.3절 |
+| `scripts/ch02_first_call.py` | SDK 만으로 하는 첫 호출 | 2.3절 |
 | `ass/console.py`, `ass/console_model.py` | 콘솔의 화면과 판단 부분 | 1.2절 |
 | `ASS_console.bat` | 콘솔을 여는 바로 가기 (Windows) | 1.2절 |
 | `ass/production/source_brief.py` | 소재 입력 형식(아이디어, 본인 블로그, 본인 영상 대본) | 6.2절 |
@@ -101,6 +107,7 @@ ass render --scene 1          :: 15초 한 장면 생성 (720p 기준 추정 $1.
 | `ass/production/scene_spec.py` | 장면 사양 스키마(화면, 내레이션, 자막, 근거) | 6.3절 |
 | `ass/production/scene_compiler.py` | 장면 사양 → 영어 프롬프트 + 내레이션 대본 | 6.4절 |
 | `ass/production/claims_guard.py` | 제품 표현 가드 | 6.5절 |
+| `ass/production/grammar.py` | 유용한 Shorts의 문법 검사, 장면 설계표 | 3.1·3.4절 |
 | `ass/production/omni_client.py` | Interactions API 호출(생성·편집) | 2·9장 |
 | `ass/production/run_record.py` | api_run.json 실행 기록 | 2.5절 |
 | `ass/guards/cost_guard.py` | 추정 비용과 예산 가드 | 4·8장 |
@@ -130,9 +137,9 @@ ass render --scene 1          :: 15초 한 장면 생성 (720p 기준 추정 $1.
 
 ## 지금 상태
 
-- 실행해 확인한 것: 단위 테스트 65개, `ass map`, `ass stack`, `ass compile`, `ass render --dry-run`.
+- 실행해 확인한 것: 단위 테스트 85개, `ass doctor`, `ass map`, `ass stack`, `ass compile`, `ass render --dry-run`.
 - 아직 실행하지 않은 것: 콘솔의 실제 창(가짜 tkinter 로 흐름만 테스트했다), 실제 API 호출. `omni_client.py` 는 공식 문서의 호출 형태를 따랐지만
-  `duration` 문자열 형식과 텍스트 입력 항목의 키는 실험 E00에서 확정해야 한다.
+  길이를 정하는 설정값은 공식 가이드(1.1 기준)에 없다. 2차 자료의 `duration: "15s"` 를 쓰고 있으며 실험 E00에서 확정해야 한다.
 - 내레이션 모드는 `tts` 로 가정했다. 실험 E13 뒤에 확정한다.
 - `claims_lexicon.yaml` 은 초기 가정값이다. 통과했다고 광고 표현이 적법하다는 뜻이 아니다.
 

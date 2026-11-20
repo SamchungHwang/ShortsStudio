@@ -18,12 +18,12 @@ beats:
     visual_ko: "창가 욕실 선반 위로 오후 햇빛이 지나가고, 마른 수건과 빈 유리컵이 놓여 있다."
     visual_en: "Afternoon sunlight slowly moves across the bathroom counter with a dry folded towel and an empty glass"
     camera_en: "slow lateral slide"
-    narration_ko: "아침에 바른 수분이 오후까지 남아 있지 않다는 뜻이다."
+    narration_ko: "아침에 공들여 발라도 오후면 다시 당긴다."
   - start_s: 9
     end_s: 15
     visual_ko: "손이 화면 밖에서 들어와 선반 가운데 빈자리를 톡톡 두드린다."
     visual_en: "A hand enters from off-screen and taps twice on the empty center of the counter, as if something is missing there"
     camera_en: "static medium close-up"
-    narration_ko: "그럴 때 하나만 더하면 된다."
-    caption_ko: "하나만 더하면"
+    narration_ko: "그럴 때 꺼내는 것이 있다."
+    caption_ko: "이럴 때 하나"
 audio_en: "Quiet bathroom room tone, a dry sponge creak, two soft finger taps on tile."

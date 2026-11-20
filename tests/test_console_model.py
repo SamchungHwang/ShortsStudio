@@ -79,3 +79,49 @@ def test_outputs_are_listed_newest_first(tmp_path):
     rows = model.list_outputs(tmp_path)
     assert [r[0] for r in rows] == ["b.mp4", "renders/a.json"]
     assert rows[0][2] == "2.5MB" and rows[1][2] == "1KB"
+
+
+def test_compile_files_are_listed_in_reading_order():
+    rows = model.command_files("compile", "product_intro")
+    reads = [r for r in rows if r.kind == "읽음"]
+    assert [r.mark for r in reads] == ["①", "①", "①", "②", "③", "④", "⑤", "⑥"]
+    assert reads[0].path == "examples/moalab_skincare/episodes/product_intro/scene_01_problem.yaml"
+    assert reads[0].what == "장면 1 (problem, 15초): 구간 3개의 화면, 내레이션, 자막, 근거"
+    assert reads[4].path == "examples/moalab_skincare/source_briefs/aqua_serum_intro.yaml"
+    assert reads[5].path == "configs/production_spec.yaml"
+    assert all(r.exists for r in reads)
+    writes = [r.path for r in rows if r.kind == "씀"]
+    assert writes[0] == "outputs/compiled/product_intro/serum_s01.prompt.txt"
+    assert writes[-1] == "outputs/compiled/product_intro/storyboard.md" and len(writes) == 7
+    assert model.files_summary(rows) == "파일 8개를 읽고 7개를 쓴다"
+
+
+def test_render_files_follow_scene_choice_and_never_show_key():
+    rows = model.command_files("render", "product_intro", "2")
+    assert [r.path for r in rows if r.mark == "①"] == [
+        "examples/moalab_skincare/episodes/product_intro/scene_02_solution.yaml"]
+    assert any(r.path == "configs/budget_policy.yaml" for r in rows)
+    env = next(r for r in rows if r.path == ".env")
+    assert "값은 어디에도 보여 주지 않는다" in env.what
+    assert [r.path for r in rows if r.kind == "씀"] == [
+        "outputs/renders/product_intro/serum_s02.<실행 시각>.mp4",
+        "outputs/renders/product_intro/serum_s02.<실행 시각>.api_run.json"]
+
+
+def test_missing_files_are_reported(tmp_path):
+    (tmp_path / "episodes" / "empty").mkdir(parents=True)
+    rows = model.command_files("compile", "empty", example_dir=tmp_path, root=tmp_path)
+    assert rows[0].status == "없음" and rows[0].path == "episodes/empty/scene_*.yaml"
+    assert "없는 파일 2개" in model.files_summary(rows)        # 장면 사양과 제품 바이블
+    brief = next(r for r in rows if r.mark == "③")
+    assert brief.status == "없음 (없어도 된다)"
+    assert model.command_files("publish", "product_intro") == []
+
+
+def test_finish_state_는_종료코드를_말로_바꾼다():
+    from ass import console_model as m
+    assert m.finish_state(0) == ("끝났습니다", "ok")
+    assert m.finish_state(4) == ("가드가 막았습니다", "guard")
+    assert m.finish_state(1) == ("실패했습니다 (종료코드 1)", "fail")
+    assert m.finish_state(1, stopped=True) == ("멈췄습니다", "stop")
+    assert m.finish_mark(0) == "✔" and m.finish_mark(2) == "✖"

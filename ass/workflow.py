@@ -112,7 +112,8 @@ def render_stack(models_config: dict[str, Any]) -> str:
         if not isinstance(m, dict) or "name" not in m:
             continue
         lines.append(f"{m['name']} — {m['role_ko']}  ({m['chapters']}장)")
-        lines.append(f"   모델 ID  {m.get('id') or '미확인'}")
+        if "id" in m:
+            lines.append(f"   모델 ID  {m.get('id') or '미확인'}")
         for item in m.get("confirmed", []):
             lines.append(f"   [확인]   {item}")
         for item in m.get("unverified", []):

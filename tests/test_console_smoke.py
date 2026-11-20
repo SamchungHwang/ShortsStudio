@@ -106,6 +106,8 @@ def test_dry_run_render_runs_three_scenes_without_asking(console, monkeypatch):
     assert all(a[-1] == "--dry-run" for a in started)
     messagebox.askokcancel.assert_not_called()
     assert app.process is None and app.notice.get() == "끝났습니다"
+    assert app.run_text.get().startswith("✔ 끝났습니다")      # 끝난 것이 실행 단추 옆에 보인다
+    app.progress.pack_forget.assert_called()                 # 멈춘 막대는 감춘다
 
 
 def test_paid_render_asks_first_and_cancel_means_no_call(console, monkeypatch):
@@ -151,3 +153,27 @@ def test_guard_block_stops_remaining_runs(console, monkeypatch):
     app.run()
     app._drain()
     assert app.notice.get() == "가드가 막았습니다" and app.pending == []
+
+
+def test_files_tab_lists_what_compile_reads_and_logs_it_on_run(console, monkeypatch):
+    module, _ = console
+    app = _app(module)
+    assert len(app.file_rows) == 15 and app.file_rows[0].mark == "①"
+    assert "파일 8개를 읽고 7개를 쓴다" in app.files_note.get()
+    assert "파일 8개를 읽고 7개를 쓴다" in app.hint.get()
+    logged = []
+    monkeypatch.setattr(app, "_log", logged.append)
+    monkeypatch.setattr(module.subprocess, "Popen", lambda argv, **k: FakeProcess([]))
+    monkeypatch.setattr(module.threading, "Thread", lambda target, args, daemon: MagicMock(start=lambda: None))
+    app.run()
+    assert logged[0] == "읽는 파일 8개:"
+    assert logged[1] == "  ① examples/moalab_skincare/episodes/product_intro/scene_01_problem.yaml"
+    assert logged[9] == "$ ass compile --episode product_intro"
+
+
+def test_files_tab_is_empty_with_explanation_for_missing_command(console):
+    module, _ = console
+    app = _app(module)
+    app.stage.set("5. 오디오")
+    app.on_stage()
+    assert app.file_rows == [] and "이 명령이 생기면" in app.files_note.get()

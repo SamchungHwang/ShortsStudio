@@ -1,0 +1,10 @@
+Vertical 9:16 video, 15 seconds, one continuous scene. Clean realistic product video, soft natural daylight, shallow depth of field, calm and minimal.
+Setting: The same bright minimal bathroom counter by a window, white tiles, a folded towel.
+Products (keep shape, color and label exactly as described):
+- MOALAB Aqua Serum: a 30 ml frosted glass dropper bottle with a white cap and a pale blue label reading MOALAB
+Action:
+[0-5s] A hand holds the dropper over an open palm and releases three clear drops of serum. Camera: top-down close-up on the palm.
+[5-10s] Both palms press together to spread the serum, then gently pat the back of one hand. Camera: close-up on the hands, soft focus background.
+[10-15s] Final shot of the MOALAB Aqua Serum bottle standing on the center of the counter in warm afternoon light. Camera: slow pull-back, hold on the final frame.
+Audio: Quiet bathroom room tone, soft liquid drops, gentle hand pats.
+Constraints: No human faces. No added text overlays, captions or subtitles (the product label itself stays). No background music. No speech, narration or voice-over.

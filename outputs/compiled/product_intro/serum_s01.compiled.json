@@ -1,0 +1,35 @@
+{
+  "scene_id": "serum_s01",
+  "duration_s": 15,
+  "aspect_ratio": "9:16",
+  "prompt": "Vertical 9:16 video, 15 seconds, one continuous scene. Clean realistic product video, soft natural daylight, shallow depth of field, calm and minimal.\nSetting: A bright minimal bathroom counter by a window in the afternoon, white tiles, a folded towel.\nAction:\n[0-3s] Extreme close-up of a fingertip pressing a completely dry, stiff kitchen sponge that barely gives. Camera: macro shot, fast push-in.\n[3-9s] Afternoon sunlight slowly moves across the bathroom counter with a dry folded towel and an empty glass. Camera: slow lateral slide.\n[9-15s] A hand enters from off-screen and taps twice on the empty center of the counter, as if something is missing there. Camera: static medium close-up.\nAudio: Quiet bathroom room tone, a dry sponge creak, two soft finger taps on tile.\nConstraints: No human faces. No added text overlays, captions or subtitles (the product label itself stays). No background music. No speech, narration or voice-over.",
+  "prompt_sha256": "7ba6f61cb46d11855526a949306e8d5f2a5be492e854c47aedd187f34cd26d47",
+  "narration_mode": "tts",
+  "narration": [
+    {
+      "start_s": 0,
+      "end_s": 3,
+      "text": "오후만 되면 피부가 당긴다면",
+      "caption": "오후에 당기는 피부?",
+      "evidence": []
+    },
+    {
+      "start_s": 3,
+      "end_s": 9,
+      "text": "아침에 공들여 발라도 오후면 다시 당긴다.",
+      "caption": null,
+      "evidence": []
+    },
+    {
+      "start_s": 9,
+      "end_s": 15,
+      "text": "그럴 때 꺼내는 것이 있다.",
+      "caption": "이럴 때 하나",
+      "evidence": []
+    }
+  ],
+  "needs_human_approval": false,
+  "compiler_version": "0.2.0",
+  "lexicon_version": "2026-11-17-draft",
+  "product_bible_version": "0.1"
+}

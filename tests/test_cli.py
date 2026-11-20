@@ -18,7 +18,10 @@ def test_compile_writes_prompts_and_reports_cost(tmp_path, capsys):
     assert "초안 1회 추정 비용 $3.15" in out
     files = sorted(p.name for p in (tmp_path / "compiled" / "product_intro").iterdir())
     assert files == ["serum_s01.compiled.json", "serum_s01.prompt.txt", "serum_s02.compiled.json",
-                     "serum_s02.prompt.txt", "serum_s03.compiled.json", "serum_s03.prompt.txt"]
+                     "serum_s02.prompt.txt", "serum_s03.compiled.json", "serum_s03.prompt.txt", "storyboard.md"]
+    board = (tmp_path / "compiled" / "product_intro" / "storyboard.md").read_text(encoding="utf-8")
+    assert board.startswith("# 장면 설계표 — 오후에 당기는 피부, 수분 세럼 하나로")
+    assert "- 약속: 수분 세럼이 어떤 제형이고 어떻게 쓰는지 45초 안에 알려 준다" in board
 
 
 def test_render_dry_run_records_without_calling(tmp_path, capsys):

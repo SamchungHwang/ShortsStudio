@@ -3,16 +3,19 @@
 지금 있는 명령은 map, stack, compile, render 와 화면으로 같은 일을 하는 console 이다. 나머지 명령은 해당 장에서 추가한다
 (전체 목록과 상태는 `ass map`, README, 시스템 정의서 6절).
 
+    ass doctor                       # 환경 점검. 첫 호출 전에 빠진 것을 찾는다
     ass console                      # 콘솔(화면). 아래 명령을 화면에서 실행한다
     ass map                          # 여섯 단계 공정 지도와 명령의 상태
     ass stack                        # 기술 스택과 확인 상태
     ass compile                      # 장면 사양 → 프롬프트·내레이션 대본. 비용 없음
     ass render --dry-run             # 첫 호출의 요청 확인. 비용 없음
     ass render --scene 1             # 15초 한 장면 생성
+    ass render --prompt "..." --duration 5 --name first_render   # 장면 사양 없이 프롬프트 한 줄로
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -22,6 +25,8 @@ from ass import __version__
 from ass.guards.cost_guard import BudgetGuard, UnknownPrice, estimate_video_cost
 from ass.policy import load_policy
 from ass.production import omni_client
+from ass.production.claims_guard import ClaimsGuard
+from ass.production.grammar import check_grammar, storyboard_markdown
 from ass.production.product_bible import load_product_bible
 from ass.production.run_record import RunRecord
 from ass.production.scene_compiler import CompileError, compile_scene
@@ -97,6 +102,9 @@ def cmd_compile(args: argparse.Namespace) -> int:
     problems = check_episode(scenes, spec.data)
     for problem in problems:
         print(f"[형식·길이 정책] {problem}")
+    notes = check_grammar(scenes, spec.data)
+    for note in notes:
+        print(f"[주의]{note}")
 
     resolution = spec.data["shot"]["draft_resolution"]
     out_dir = OUTPUT_DIR / "compiled" / args.episode
@@ -126,71 +134,119 @@ def cmd_compile(args: argparse.Namespace) -> int:
 
     print(f"\n장면 {len(scenes)}개, 생성 길이 합 {sum(s.duration_s for s in scenes)}초, "
           f"초안 1회 추정 비용 ${total:.2f} ({resolution})")
+    title = promise = ""
+    brief_path = EXAMPLE_DIR / "source_briefs" / f"{scenes[0].episode_id}.yaml"
+    if brief_path.is_file():        # 소재 요약이 있으면 제목과 약속을 설계표 머리에 적는다
+        from ass.production.source_brief import load_source_brief
+
+        brief = load_source_brief(brief_path)
+        title, promise = brief.title_ko, brief.promise_ko
+    (out_dir / "storyboard.md").write_text(
+        storyboard_markdown(scenes, spec.data, title=title, promise=promise), encoding="utf-8")
+    if notes:
+        print(f"문법 주의 {len(notes)}건. 막지는 않는다. 장면 설계표에서 확인한다.")
     print(f"policy_hash  production_spec={spec.policy_hash}  models={models.policy_hash}")
-    print(f"저장: {out_dir}")
+    print(f"저장: {out_dir} (프롬프트, 내레이션 대본, storyboard.md)")
     return 1 if problems else 0
 
 
+def cmd_doctor(args: argparse.Namespace) -> int:
+    """환경을 점검한다. --write 를 주면 docs/setup.md 로 남긴다."""
+    from ass import doctor
+
+    checks = doctor.run_checks()
+    print(doctor.render_text(checks))
+    if args.write:
+        path = ROOT / "docs" / "setup.md"
+        path.write_text(doctor.render_markdown(checks), encoding="utf-8")
+        print(f"저장: {path}")
+    return 1 if any(c.status == "fail" for c in checks) else 0
+
+
 def cmd_render(args: argparse.Namespace) -> int:
-    """장면 하나를 Gemini Omni Flash로 생성하고 실행 기록(api_run.json)을 남긴다."""
+    """장면 하나를 Gemini Omni Flash로 생성하고 실행 기록(api_run.json)을 남긴다.
+
+    --prompt 를 주면 장면 사양 없이 프롬프트 한 줄로 생성한다(2장의 첫 호출). 이때도 표현 가드와 비용 가드를 지난다.
+    """
     spec = load_policy("production_spec")
     models = load_policy("models")
     budget = load_policy("budget_policy")
-    bible = load_product_bible(EXAMPLE_DIR / "product_bible.yaml")
-    scenes = _load_episode(args.episode)
-    if not 1 <= args.scene <= len(scenes):
-        raise SystemExit(f"--scene 은 1~{len(scenes)} 이어야 한다")
-    scene = scenes[args.scene - 1]
-    compiled = compile_scene(scene, bible, spec.data)
 
-    if compiled.needs_human_approval:
-        print("타사 제품이 나오는 장면이다. 사람 승인 절차(9.4절)를 거친 뒤 생성한다. "
-              "승인 명령이 생기기 전까지는 생성하지 않는다.")
-        return 3
+    if args.prompt:
+        if args.duration is None:
+            raise SystemExit("--prompt 로 생성할 때는 --duration 을 함께 준다")
+        violations = ClaimsGuard().find(args.prompt, "prompt")
+        if violations:
+            print("[막힘] 제품 표현 가드 위반: " + ", ".join(f"'{v.term}' [{v.category}]" for v in violations))
+            return 4
+        prompt, label = args.prompt, "prompt"
+        prompt_sha = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+        duration, aspect, episode = args.duration, args.aspect or spec.data["shot"]["aspect_ratio"], "adhoc"
+    else:
+        bible = load_product_bible(EXAMPLE_DIR / "product_bible.yaml")
+        scenes = _load_episode(args.episode)
+        if not 1 <= args.scene <= len(scenes):
+            raise SystemExit(f"--scene 은 1~{len(scenes)} 이어야 한다")
+        scene = scenes[args.scene - 1]
+        compiled = compile_scene(scene, bible, spec.data)
+        if compiled.needs_human_approval:
+            print("타사 제품이 나오는 장면이다. 사람 승인 절차(9.4절)를 거친 뒤 생성한다. "
+                  "승인 명령이 생기기 전까지는 생성하지 않는다.")
+            return 3
+        prompt, prompt_sha, label = compiled.prompt, compiled.prompt_sha256, scene.scene_id
+        duration, aspect, episode = args.duration or scene.duration_s, args.aspect or scene.aspect_ratio, args.episode
 
-    duration = args.duration or scene.duration_s
-    resolution = spec.data["shot"]["draft_resolution"]
+    resolution = args.resolution or spec.data["shot"]["draft_resolution"]
     model_id = models.data["video"]["id"]
     request = omni_client.build_request(
-        compiled.prompt, model=model_id, duration_s=duration,
-        aspect_ratio=scene.aspect_ratio, resolution=resolution,
+        prompt, model=model_id, duration_s=duration,
+        aspect_ratio=aspect, resolution=resolution, delivery=args.delivery,
     )
     cost = estimate_video_cost(duration, resolution, models.data)
     guard = BudgetGuard(_run_budget_usd(budget.data))
-    guard.charge(cost, f"{scene.scene_id} {duration}초 {resolution}")
+    guard.charge(cost, f"{label} {duration}초 {resolution}")
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
-    out_dir = OUTPUT_DIR / "renders" / args.episode
+    stem = args.name or f"{label}.{run_id}"
+    out_dir = OUTPUT_DIR / "renders" / episode
     record = RunRecord(
         run_id=run_id,
-        purpose=f"ass render {args.episode} {scene.scene_id}",
+        purpose=f"ass render {episode} {label}",
         model=model_id,
         request=omni_client.summarize_request(request),
-        prompt_sha256=compiled.prompt_sha256,
+        prompt_sha256=prompt_sha,
         policy_hashes={p.name: p.policy_hash for p in (spec, models, budget)},
         estimated_cost_usd=cost,
     )
 
-    print(f"모델 {model_id} | {duration}초 | {resolution} | {scene.aspect_ratio} | 추정 ${cost:.2f} "
+    print(f"모델 {model_id} | {duration}초 | {resolution} | {aspect} | 추정 ${cost:.2f} "
           f"(실행 예산 ${guard.cap_usd:.2f})")
-    print(compiled.prompt)
+    print(prompt)
 
-    record_path = out_dir / f"{scene.scene_id}.{run_id}.api_run.json"
+    record_path = out_dir / f"{stem}.api_run.json"
     if args.dry_run:
         record.status = "dry_run"
         print(f"\n[dry-run] 호출하지 않았다. 기록: {record.save(record_path)}")
         return 0
 
     if not os.environ.get("GEMINI_API_KEY"):
-        print("\nGEMINI_API_KEY 가 없다. .env.example 을 .env 로 복사해 키를 넣는다.")
+        print("\nGEMINI_API_KEY 가 없다. .env.example 을 .env 로 복사해 키를 넣는다. ass doctor 로 확인한다.")
         return 2
 
     try:
-        result = omni_client.generate(request, out_dir / f"{scene.scene_id}.{run_id}.mp4")
+        api_version = models.data["video"].get("api_version", omni_client.DEFAULT_API_VERSION)
+        record.notes = f"api_version={api_version}"
+        result = omni_client.generate(request, out_dir / f"{stem}.mp4", api_version=api_version)
     except Exception as exc:  # 실패도 기록으로 남긴다 ('자주 나는 오류' 상자의 재료)
         record.status = "error"
         record.error = f"{type(exc).__name__}: {exc}"
-        print(f"\n실패: {record.error}\n기록: {record.save(record_path)}")
+        hint = omni_client.explain_error(exc)
+        if hint:
+            record.notes = f"{record.notes}; {hint}" if record.notes else hint
+        print(f"\n실패: {record.error}")
+        if hint:
+            print(f"조치: {hint}")
+        print(f"기록: {record.save(record_path)}")
         return 1
 
     record.interaction_id = result.interaction_id
@@ -210,6 +266,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"ass {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    d = sub.add_parser("doctor", help="환경 점검")
+    d.add_argument("--write", action="store_true", help="docs/setup.md 로 저장")
+    d.set_defaults(func=cmd_doctor)
+
     g = sub.add_parser("console", help="콘솔(화면)을 연다")
     g.set_defaults(func=cmd_console)
 
@@ -228,6 +288,13 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--episode", default="product_intro")
     r.add_argument("--scene", type=int, default=1, help="장면 번호 (1부터)")
     r.add_argument("--duration", type=int, default=None, help="초(3~15). 기본은 장면 사양의 길이")
+    r.add_argument("--prompt", default=None, help="장면 사양 대신 쓸 프롬프트 한 줄 (--duration 필요)")
+    r.add_argument("--resolution", default=None, choices=["360p", "720p", "1080p", "4k"],
+                   help="기본은 production_spec 의 초안 해상도")
+    r.add_argument("--aspect", default=None, choices=["9:16", "16:9"], help="화면비. 기본 9:16")
+    r.add_argument("--delivery", default="inline", choices=["inline", "uri"],
+                   help="결과를 받는 방식. 4MB 를 넘으면 uri")
+    r.add_argument("--name", default=None, help="결과 파일 이름(확장자 없이). 기본은 장면 id 와 실행 시각")
     r.add_argument("--dry-run", action="store_true", help="API를 호출하지 않고 요청만 출력")
     r.set_defaults(func=cmd_render)
     return parser

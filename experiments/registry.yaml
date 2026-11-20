@@ -5,8 +5,9 @@
 updated_on: "2026-11-17"
 experiments:
   - id: E00
-    title: "호출 형태 확정: duration 문자열 형식, 텍스트 항목 키, 응답 필드"
-    question: "response_format.duration='15s' 가 받아들여지는가. 이미지+텍스트 입력에서 텍스트 항목의 키는 무엇인가."
+    title: "호출 형태 확정: 길이 설정값, 기본 길이, 유료 등급, 응답 필드, 파일 크기"
+    question: "길이는 어떤 설정값으로 정하는가(공식 가이드 1.1 예제에는 없다. 2차 자료: response_format.duration='15s'). 지정하지 않으면 몇 초인가. 유료 등급이 필요한가. 15초 720p 결과는 4MB 를 넘는가. 이미지+텍스트 입력에서 텍스트 항목의 키는 무엇인가."
+    how: "python scripts/ch02_first_call.py (5초, 추정 $0.35) → ass render --prompt ... --duration 15 --name first_render (추정 $1.05)"
     feeds: ["2장", "ass/production/omni_client.py"]
     status: todo
   - id: E01
