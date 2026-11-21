@@ -16,7 +16,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from ass.production.claims_guard import ClaimsGuard, Violation
-from ass.production.product_bible import ProductBible
+from ass.production.product_bible import ProductBible, find_dont_say
 from ass.production.scene_spec import SceneSpec
 
 COMPILER_VERSION = "0.2.0"
@@ -80,6 +80,14 @@ def compile_scene(
                 f"{scene.scene_id}.beats[{i}]: product_bible 에 없는 근거 {unknown}. "
                 "사실은 제품 바이블에 먼저 적고 출처를 남긴다."
             )
+
+    for i, beat in enumerate(scene.beats):          # 제품마다 정해 둔 '쓰지 않는 표현' (5.1절)
+        spoken = " ".join(t for t in (beat.narration_ko, beat.caption_ko) if t)
+        for product in products:
+            for dont in find_dont_say(product, spoken):
+                raise CompileError(
+                    f"{scene.scene_id}.beats[{i}]: '{dont.text_ko}' 는 {product.name_ko} 에 쓰지 않기로 한 표현이다. "
+                    f"이유: {dont.reason}")
 
     shot = production_spec["shot"]
     narration_cfg = production_spec.get("narration", {})

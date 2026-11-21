@@ -7,9 +7,9 @@
 |---|---|---|---|---|
 | 1 | `ass/workflow.py`, `ass/console.py`, `ass/console_model.py`, `ass/cli.py` (`ass map`, `ass stack`, `ass console`), `configs/workflow.yaml`, `configs/models.yaml` | docs/workflow_map.md, README.md | README, 1·2장의 자율화 레벨 | 있음 |
 | 2 | `ass/doctor.py` (`ass doctor`), `ass/production/omni_client.py`, `run_record.py`, `ass/cli.py` (`ass render --prompt`), `scripts/ch02_first_call.py` | docs/setup.md, first_render.mp4, first_render.api_run.json | 없음(자리표시자) | 있음(미실행) |
-| 3 | `examples/moalab_skincare/`, `configs/production_spec.yaml` 의 formats | series_bible.md, 장면 사양 3개 | `configs/production_spec.yaml` 의 templates | 있음(초안) |
-| 4 | `ass/guards/cost_guard.py` | draft_45s.mp4, cost_ledger.csv, error_log.md | `acs/guards/cost_guard.py` | 일부 |
-| 5 | `ass/production/product_bible.py` | product_bible.yaml, reference_manifest.json | `production_spec.yaml` 의 subject | 일부 |
+| 3 | `ass/production/grammar.py`, `examples/moalab_skincare/`, `configs/production_spec.yaml` 의 formats·grammar | series_bible.md, 장면 사양 3개 | `configs/production_spec.yaml` 의 templates | 있음(초안) |
+| 4 | `ass/production/assembler.py` (`ass assemble`), `ass/production/retry.py`, `ass/ledger.py` (`ass cost`), `ass/guards/cost_guard.py`, `configs/assemble_recipe.yaml`, `configs/retry_policy.yaml` | draft_45s.mp4, cost_ledger.csv, error_log.md | `acs/guards/cost_guard.py` | 있음(실제 영상으로는 미실행) |
+| 5 | `ass/production/product_bible.py`, `bible_lint.py` (`ass bible`), `image_client.py`, `reference_sheet.py` (`ass sheet`), `configs/bible_rules.yaml`, `configs/reference_sheet.yaml` | product_bible.yaml, reference_manifest.json | 없음 (신규) | 있음(실제 호출은 미실행) |
 | 6 | `ass/production/source_brief.py`, `scene_spec.py`, `scene_compiler.py`, `claims_guard.py` (대본 생성 `script_agent.py` 는 아직 없음) | source_brief, scene_spec.schema.json, scene_compiler.py, tests/ | `acs/production/spec.py`, `script_agent.py`, `veo_prompt_agent.py` | 있음(초안) |
 | 7 | (실험 스크립트) | mode_experiment.csv, consistency_report.md | 없음 | 없음 |
 | 8 | `ass/production/quality_score.py` | quality_score.py, quality_report.json, promotion_policy.yaml | `acs/production/quality_score.py`, `configs/quality_rubric.yaml` | 없음 |

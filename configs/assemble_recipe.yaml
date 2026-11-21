@@ -1,0 +1,22 @@
+# assemble_recipe.yaml — 조립 레시피 (4.1절). `ass assemble` 이 읽는다.
+# 4장은 세 장면을 그대로 이어 붙인다. 전환, 자막 입히기, 내레이션·음악 믹싱은 10~12장에서 더한다.
+version: "2026-11-20"
+video:
+  width: 720                  # 9:16, 720p 초안
+  height: 1280
+  fps: source                 # 첫 장면의 값을 따른다. 숫자를 적으면 그 값으로 맞춘다
+  codec: libx264
+  crf: 18                     # 낮을수록 화질이 좋고 파일이 크다
+  preset: medium
+  pixel_format: yuv420p       # 대부분의 재생기와 YouTube 가 읽는다
+audio:
+  codec: aac
+  bitrate: 192k
+  sample_rate: 48000
+  channel_layout: stereo
+trim:                         # 장면마다 앞뒤에서 잘라 내는 길이(초). 연결부가 어색할 때 조금씩 늘린다
+  head_s: 0.0
+  tail_s: 0.0
+transition: cut               # 4장은 컷으로만 잇는다
+length_tolerance_s: 0.5       # 요청한 길이와 실제 길이의 차이가 이보다 크면 알려 준다
+output_name: draft_45s

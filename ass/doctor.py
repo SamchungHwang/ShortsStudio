@@ -75,7 +75,7 @@ def run_checks(env: dict[str, str] | None = None) -> list[Check]:
 
     ffmpeg = shutil.which("ffmpeg")
     checks.append(Check(name="FFmpeg", status="ok" if ffmpeg else "warn", detail=ffmpeg or "없음",
-                        fix="" if ffmpeg else "4장의 조립부터 필요하다. conda install -c conda-forge ffmpeg"))
+                        fix="" if ffmpeg else "4장의 조립부터 필요하다. winget install -e --id Gyan.FFmpeg 로 설치하고 창을 새로 연다"))
 
     try:
         models = load_config("models")

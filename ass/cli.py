@@ -1,6 +1,6 @@
 """ass — ASS(Autonomous Shorts Studio)의 명령줄 진입점.
 
-지금 있는 명령은 map, stack, compile, render 와 화면으로 같은 일을 하는 console 이다. 나머지 명령은 해당 장에서 추가한다
+지금 있는 명령은 map, stack, compile, render, assemble, cost, bible, sheet 와 화면으로 같은 일을 하는 console 이다. 나머지 명령은 해당 장에서 추가한다
 (전체 목록과 상태는 `ass map`, README, 시스템 정의서 6절).
 
     ass doctor                       # 환경 점검. 첫 호출 전에 빠진 것을 찾는다
@@ -11,6 +11,12 @@
     ass render --dry-run             # 첫 호출의 요청 확인. 비용 없음
     ass render --scene 1             # 15초 한 장면 생성
     ass render --prompt "..." --duration 5 --name first_render   # 장면 사양 없이 프롬프트 한 줄로
+    ass assemble                     # 세 장면을 이어 붙여 초안 한 편으로. 비용 없음
+    ass bible                        # 제품 바이블 점검. 비용 없음
+    ass sheet --dry-run              # 레퍼런스 시트 계획. 비용 없음
+    ass sheet                        # 레퍼런스 시트 후보 만들기 (Nano Banana)
+    ass sheet --select v001 --by 이름   # 사람이 고른 후보를 기록한다
+    ass cost                         # 실행 기록을 모아 비용 장부와 오류 기록을 만든다
 """
 from __future__ import annotations
 
@@ -22,9 +28,10 @@ import sys
 from datetime import datetime
 
 from ass import __version__
-from ass.guards.cost_guard import BudgetGuard, UnknownPrice, estimate_video_cost
+from ass.guards.cost_guard import BudgetGuard, UnknownPrice, estimate_image_cost, estimate_video_cost
 from ass.policy import load_policy
-from ass.production import omni_client
+from ass import ledger
+from ass.production import assembler, bible_lint, image_client, omni_client, reference_sheet, retry
 from ass.production.claims_guard import ClaimsGuard
 from ass.production.grammar import check_grammar, storyboard_markdown
 from ass.production.product_bible import load_product_bible
@@ -204,7 +211,8 @@ def cmd_render(args: argparse.Namespace) -> int:
     )
     cost = estimate_video_cost(duration, resolution, models.data)
     guard = BudgetGuard(_run_budget_usd(budget.data))
-    guard.charge(cost, f"{label} {duration}초 {resolution}")
+    if cost > guard.cap_usd:        # 호출하기 전에, 요청만 확인할 때도 막는다
+        guard.charge(cost, f"{label} {duration}초 {resolution}")
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     stem = args.name or f"{label}.{run_id}"
@@ -212,6 +220,8 @@ def cmd_render(args: argparse.Namespace) -> int:
     record = RunRecord(
         run_id=run_id,
         purpose=f"ass render {episode} {label}",
+        episode=episode,
+        scene_id=None if args.prompt else label,
         model=model_id,
         request=omni_client.summarize_request(request),
         prompt_sha256=prompt_sha,
@@ -233,13 +243,26 @@ def cmd_render(args: argparse.Namespace) -> int:
         print("\nGEMINI_API_KEY 가 없다. .env.example 을 .env 로 복사해 키를 넣는다. ass doctor 로 확인한다.")
         return 2
 
+    retry_policy = load_policy("retry_policy").data
+    api_version = models.data["video"].get("api_version", omni_client.DEFAULT_API_VERSION)
+    record.notes = f"api_version={api_version}"
+
+    def before_attempt(attempt: int) -> None:   # 시도할 때마다 추정 비용을 예산에서 뺀다
+        guard.charge(cost, f"{label} {duration}초 {resolution} ({attempt}번째 시도)")
+        record.attempts = attempt
+
+    def on_retry(attempt: int, exc: BaseException, wait: float) -> None:
+        print(f"\n{attempt}번째 시도 실패: {type(exc).__name__}: {exc}")
+        print(f"{wait:.0f}초 뒤에 다시 시도한다 (남은 실행 예산 ${guard.remaining_usd:.2f})", flush=True)
+
     try:
-        api_version = models.data["video"].get("api_version", omni_client.DEFAULT_API_VERSION)
-        record.notes = f"api_version={api_version}"
-        result = omni_client.generate(request, out_dir / f"{stem}.mp4", api_version=api_version)
+        result, record.attempt_errors = retry.call_with_retry(
+            lambda: omni_client.generate(request, out_dir / f"{stem}.mp4", api_version=api_version),
+            retry_policy, before_attempt=before_attempt, on_retry=on_retry)
     except Exception as exc:  # 실패도 기록으로 남긴다 ('자주 나는 오류' 상자의 재료)
         record.status = "error"
         record.error = f"{type(exc).__name__}: {exc}"
+        record.attempt_errors = list(getattr(exc, "attempt_errors", []))
         hint = omni_client.explain_error(exc)
         if hint:
             record.notes = f"{record.notes}; {hint}" if record.notes else hint
@@ -256,6 +279,292 @@ def cmd_render(args: argparse.Namespace) -> int:
     print(f"interaction id: {result.interaction_id}  ← 대화형 편집(9장)에 쓴다")
     print(f"기록: {record.save(record_path)}")
     return 0
+
+
+def cmd_assemble(args: argparse.Namespace) -> int:
+    """장면 영상을 차례로 이어 붙여 초안 한 편을 만든다. API를 호출하지 않는다."""
+    spec = load_policy("production_spec")
+    recipe = load_policy("assemble_recipe")
+    scenes = _load_episode(args.episode)
+    picks = dict(p.split("=", 1) for p in args.pick or [])
+    render_dir = OUTPUT_DIR / "renders" / args.episode
+    out_dir = OUTPUT_DIR / "episodes" / args.episode
+    name = args.name or recipe.data["output_name"]
+
+    try:
+        clips = []
+        for n, scene in enumerate(scenes, 1):
+            run_id = picks.get(str(n)) or picks.get(scene.scene_id)
+            path, rid = assembler.find_render(render_dir, scene.scene_id, run_id)
+            clips.append((path, rid, assembler.probe(path)))
+        assembly = assembler.plan(args.episode, scenes, clips, recipe.data, spec.data, out_dir / f"{name}.mp4")
+    except assembler.AssembleError as exc:
+        print(f"[조립] {exc}")
+        return 2
+
+    print(f"{'장면':<22}{'요청':>6}{'실제':>8}{'사용':>8}  {'크기':<10}{'프레임':>7}  소리  실행 기록")
+    for c in assembly.clips:
+        print(f"{c.scene_id:<22}{c.requested_s:>5g}초{c.info.duration_s:>7.2f}초{c.used_s:>7.2f}초  "
+              f"{c.info.width}x{c.info.height:<6}{c.info.fps:>6g}  {'있음' if c.info.has_audio else '없음'}  "
+              f"{c.run_id or '없음'}")
+    for note in assembly.notes:
+        print(f"[주의] {note}")
+    for problem in assembly.problems:
+        print(f"[형식·길이 정책] {problem}")
+    print(f"전체 길이 {assembly.total_s:.2f}초")
+
+    if args.dry_run:
+        assembly.command = assembler.build_command(assembly, recipe.data)
+        print("\n[dry-run] FFmpeg 를 실행하지 않았다. 실행할 명령:")
+        print(" ".join(f'"{part}"' if any(ch in part for ch in " ;[]") else part for part in assembly.command))
+        return 1 if assembly.problems else 0
+    try:
+        assembler.run(assembly, recipe.data)
+        result = assembler.probe(out_dir / f"{name}.mp4")
+    except assembler.AssembleError as exc:
+        print(f"[조립] {exc}")
+        return 2
+
+    (out_dir / f"{name}.srt").write_text(assembler.srt_text(scenes, assembly), encoding="utf-8")
+    manifest = assembly.model_dump()
+    manifest["result"] = result.model_dump()
+    manifest["policy_hashes"] = {p.name: p.policy_hash for p in (spec, recipe)}
+    manifest["created_at"] = datetime.now().isoformat(timespec="seconds")
+    (out_dir / f"{name}.assembly.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"\n저장: {out_dir / (name + '.mp4')} ({result.duration_s:.2f}초, {result.width}x{result.height}, "
+          f"{result.size_bytes / 1e6:.1f}MB)")
+    print(f"자막: {out_dir / (name + '.srt')} (영상에 입히지 않았다. 재생기에서 자막 파일로 불러온다)")
+    print(f"기록: {out_dir / (name + '.assembly.json')}")
+    review_path = out_dir / f"{name}.review.md"
+    if review_path.is_file():           # 사람이 적은 것을 덮어쓰지 않는다
+        print(f"검토 기록: {review_path} (이미 있다. 그대로 둔다)")
+    else:
+        review_path.write_text(assembler.review_template(assembly), encoding="utf-8")
+        print(f"검토 기록: {review_path} (빈 양식. 초안을 보고 채운다)")
+    print(f"policy_hash  production_spec={spec.policy_hash}  assemble_recipe={recipe.policy_hash}")
+    return 1 if assembly.problems else 0
+
+
+def cmd_cost(args: argparse.Namespace) -> int:
+    """실행 기록을 모아 비용 장부(cost_ledger.csv)와 오류 기록(error_log.md)을 만든다."""
+    rows = ledger.collect(OUTPUT_DIR, args.episode)
+    out_dir = OUTPUT_DIR / "ledger"
+    if not rows:
+        print("실행 기록이 없다. ass render 를 먼저 실행한다.")
+        return 0
+    print(f"{'실행':<17}{'편':<15}{'장면':<20}{'길이':>5} {'해상도':<6}{'상태':<8}{'시도':>3}{'소요':>8}{'추정':>8}")
+    for r in rows:
+        length = f"{r.duration_s:g}초" if r.duration_s else "-"
+        elapsed = f"{r.elapsed_s:.0f}초" if r.elapsed_s else "-"
+        print(f"{r.run_id:<17}{r.episode:<15}{(r.scene_id or '-'):<20}{length:>5} {r.resolution:<6}"
+              f"{r.status:<8}{r.calls:>3}{elapsed:>8}{'$' + format(r.charged_estimate_usd, '.2f'):>8}")
+    s = ledger.summarize(rows)
+    scope = args.episode or "전체"
+    print(f"\n[{scope}] 성공 {s.ok_calls}건 추정 ${s.ok_usd:.2f} (영상 {s.ok_seconds:g}초, 처리 시간 {s.elapsed_s:.0f}초)")
+    print(f"[{scope}] 실패한 시도 {s.failed_calls}건 추정 ${s.failed_usd:.2f} — 청구 여부는 확인하지 못했다. 결제 화면에서 본다")
+    print(f"[{scope}] 요청만 확인 {s.dry_runs}건 $0.00")
+    print(f"[{scope}] 추정 합계 ${s.ok_usd:.2f} ~ ${s.worst_case_usd:.2f} (실패한 시도가 모두 청구될 때)")
+    if s.ok_seconds:
+        print(f"[{scope}] 영상 1초를 만드는 데 걸린 시간 {s.elapsed_s / s.ok_seconds:.1f}초")
+    everything = ledger.collect(OUTPUT_DIR)      # 화면에는 고른 편만, 파일에는 늘 전체를 쓴다
+    print(f"\n장부: {ledger.write_csv(everything, out_dir / 'cost_ledger.csv')} (전체 {len(everything)}건)")
+    error_path = out_dir / "error_log.md"
+    error_path.write_text(ledger.error_log_markdown(everything), encoding="utf-8")
+    print(f"오류 기록: {error_path}")
+    if args.billed is not None:
+        row = ledger.append_billing_check(out_dir / "billing_checks.csv", scope, s.ok_usd, args.billed, args.note or "")
+        print(f"실제 청구액 ${row['billed_usd']:.2f} · 성공 호출 추정 ${row['estimated_usd']:.2f} · "
+              f"차이 {row['diff_usd']:+.2f} → {out_dir / 'billing_checks.csv'}")
+    else:
+        print("실제 청구액은 AI Studio 의 Billing 화면에서 보고 적는다. 콘솔: [작업] → 실제 청구액 적기 · 명령: ass cost --billed 금액")
+    return 0
+
+
+def _print_findings(findings: list, product_id: str | None = None) -> None:
+    for f in findings:
+        if product_id is None or f.product_id == product_id:
+            mark = "[막힘]" if f.level == "error" else "[주의]"
+            print(f"  {mark} {f.where}: {f.message}")
+
+
+def cmd_bible(args: argparse.Namespace) -> int:
+    """제품 바이블을 점검한다. 외형 서술, 사실의 출처, 표현, 레퍼런스 상태를 본다. 비용 없음."""
+    bible = load_product_bible(EXAMPLE_DIR / "product_bible.yaml")
+    rules = load_policy("bible_rules")
+    recipe = load_policy("reference_sheet").data
+    findings = bible_lint.lint_bible(bible, rules.data, ClaimsGuard())
+    products = [bible.get(args.product)] if args.product else list(bible.products.values())
+    print(f"제품 바이블 v{bible.version} · 제품 {len(bible.products)}개 · {EXAMPLE_DIR / 'product_bible.yaml'}")
+    for product in products:
+        own = "자사" if product.is_own else "타사 (이 제품이 나오는 장면은 사람 승인)"
+        print(f"\n{product.id} — {product.name_ko} · {own}")
+        print(f"  외형: {product.appearance_en}")
+        print(f"  사실 {len(product.facts)}개 · 써도 되는 표현 {len(product.say)}개 · 쓰지 않는 표현 {len(product.dont_say)}개")
+        manifest = reference_sheet.load_manifest(reference_sheet.manifest_path(product.id, recipe, EXAMPLE_DIR))
+        print(f"  레퍼런스: {reference_sheet.manifest_line(manifest)}")
+        for problem in reference_sheet.manifest_problems(product, manifest, recipe, EXAMPLE_DIR):
+            print(f"  [주의] 레퍼런스: {problem}")
+        _print_findings(findings, product.id)
+    shown = [f for f in findings if not args.product or f.product_id == args.product]
+    errors = sum(f.level == "error" for f in shown)
+    print(f"\n막힘 {errors}건 · 주의 {len(shown) - errors}건 · 규칙 bible_rules={rules.policy_hash}")
+    print("이 점검은 형식을 본다. 사실이 참인지, 표현이 법에 맞는지는 사람이 확인한다.")
+    return 4 if errors else 0
+
+
+def cmd_sheet(args: argparse.Namespace) -> int:
+    """제품 레퍼런스 시트. 후보를 만들거나(--select 없이), 사람이 고른 후보를 기록한다(--select)."""
+    bible = load_product_bible(EXAMPLE_DIR / "product_bible.yaml")
+    try:
+        product = bible.get(args.product)
+    except KeyError as exc:
+        print(f"[막힘] {exc.args[0]}. 있는 제품: {', '.join(bible.products)}")
+        return 2
+    recipe_policy = load_policy("reference_sheet")
+    recipe = recipe_policy.data
+    root = reference_sheet.sheet_root(product.id, OUTPUT_DIR)
+
+    if args.select:                                   # ---- 고르기: 사람이 한다. 비용 없음
+        try:
+            picks, explicit = reference_sheet.parse_picks(args.select, recipe)
+            manifest = reference_sheet.select(product, picks, recipe, EXAMPLE_DIR, OUTPUT_DIR, bible.version,
+                                              args.by or "", args.note or "", explicit=explicit)
+        except reference_sheet.SheetError as exc:
+            print(f"[막힘] {exc}")
+            return 4
+        print(f"{product.id} 레퍼런스 {len(manifest['images'])}장 · 기록 {manifest['manifest_version']}판 · "
+              f"{manifest['selected_by']} · {manifest['selected_at']}")
+        for image in manifest["images"]:
+            print(f"  {image['view']:<14}{image['from_version']}  {image['file']}  sha256 {image['sha256'][:12]}")
+        print(f"기록: {reference_sheet.manifest_path(product.id, recipe, EXAMPLE_DIR)}")
+        return 0
+
+    findings = bible_lint.lint_bible(bible, load_policy("bible_rules").data, ClaimsGuard())
+    if bible_lint.has_errors(findings, product.id):   # ---- 만들기 전에 바이블부터
+        print(f"[막힘] {product.id}: 제품 바이블에 고칠 것이 있다. 틀린 서술로 만든 레퍼런스는 모든 장면에 퍼진다.")
+        _print_findings([f for f in findings if f.level == "error"], product.id)
+        return 4
+    if not product.is_own and not args.approved_by:
+        print(f"[막힘] {product.id} 는 타사 제품이다. 타사 제품의 이미지를 만드는 일은 사람이 승인한다 (--approved-by 이름).")
+        print("  실제 타사 제품이라면 외형을 글로 지어내지 않는다. 직접 구입해 찍은 사진만 쓴다.")
+        return 4
+
+    models = load_policy("models")
+    budget = load_policy("budget_policy")
+    image_cfg = models.data["image"]
+    photos = reference_sheet.photo_paths(product.id, recipe, EXAMPLE_DIR)
+    mode = "photo" if photos else "text"
+    version = reference_sheet.next_version(root)
+    version_dir = root / version
+    only = [v.strip() for v in args.views.split(",") if v.strip()] if args.views else None
+    try:
+        plans = reference_sheet.plan_views(product, recipe, photos, version_dir, only)
+    except reference_sheet.SheetError as exc:
+        print(f"[막힘] {exc}")
+        return 4
+    size = recipe["image"]["size"]
+    unit = estimate_image_cost(size, models.data)
+    total = round(unit * len(plans), 4)
+    guard = BudgetGuard(_run_budget_usd(budget.data))
+
+    print(f"{product.id} — {product.name_ko} · 후보 {version} · 방향 {len(plans)}개")
+    if photos:
+        print(f"만드는 길: 본인 사진 {len(photos)}장을 보고 그린다 ({reference_sheet.photo_dir(product.id, recipe, EXAMPLE_DIR)})")
+    else:
+        print(f"만드는 길: 사진이 없다. 외형 서술로 기준 방향({recipe['anchor_view']})을 먼저 만들고 나머지는 그것을 보고 그린다")
+        print(f"  사진을 넣는 곳: {reference_sheet.photo_dir(product.id, recipe, EXAMPLE_DIR)}")
+    print(f"모델 {image_cfg['id']} | {size} | {recipe['image']['aspect_ratio']} | "
+          f"한 장 추정 ${unit:.4f} × {len(plans)} = ${total:.2f} (실행 예산 ${guard.cap_usd:.2f})")
+    print("  추정에는 출력 이미지 값만 들어 있다. 입력과 사고 토큰은 따로 청구된다.")
+    for plan in plans:
+        refs = "기준 방향을 보고" if plan.uses_anchor else (f"사진 {len(plan.image_paths)}장을 보고" if plan.image_paths else "글만으로")
+        print(f"\n[{plan.view_id} · {plan.name_ko}] {refs}")
+        print(f"  {plan.prompt}")
+    if total > guard.cap_usd:
+        guard.charge(total, f"{product.id} 레퍼런스 시트 {len(plans)}장")
+
+    if args.dry_run:
+        print("\n[dry-run] 호출하지 않았다. 파일도 쓰지 않았다.")
+        return 0
+    if not os.environ.get("GEMINI_API_KEY"):
+        print("\nGEMINI_API_KEY 가 없다. .env 에 키를 넣은 뒤 다시 실행한다.")
+        return 2
+
+    retry_policy = load_policy("retry_policy").data
+    api_version = image_cfg.get("api_version", omni_client.DEFAULT_API_VERSION)
+    made: list[str] = []
+    failed = False
+    for plan in plans:
+        run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
+        out = version_dir / os.path.basename(plan.output_path)
+        request = image_client.build_request(
+            plan.prompt, model=image_cfg["id"], image_paths=plan.image_paths,
+            aspect_ratio=recipe["image"]["aspect_ratio"], image_size=size, mime_type=recipe["image"]["mime_type"],
+            max_images=int(image_cfg["max_reference_images"]))
+        record = RunRecord(
+            run_id=run_id, purpose=f"ass sheet {product.id} {plan.view_id}", episode="sheet",
+            scene_id=f"{product.id}/{plan.view_id}", model=image_cfg["id"],
+            request=image_client.summarize_request(request, plan.image_paths),
+            prompt_sha256=hashlib.sha256(plan.prompt.encode("utf-8")).hexdigest(),
+            policy_hashes={p.name: p.policy_hash for p in (models, recipe_policy, budget)},
+            estimated_cost_usd=unit, notes=f"api_version={api_version} mode={mode} version={version}")
+
+        def before_attempt(attempt: int, plan=plan, record=record) -> None:
+            guard.charge(unit, f"{product.id} {plan.view_id} ({attempt}번째 시도)")
+            record.attempts = attempt
+
+        def on_retry(attempt: int, exc: BaseException, wait: float) -> None:
+            print(f"{attempt}번째 시도 실패: {type(exc).__name__}: {exc}")
+            print(f"{wait:.0f}초 뒤에 다시 시도한다 (남은 실행 예산 ${guard.remaining_usd:.2f})", flush=True)
+
+        print(f"\n{plan.view_id} 생성 중 …", flush=True)
+        try:
+            result, record.attempt_errors = retry.call_with_retry(
+                lambda request=request, out=out: image_client.generate(request, out, api_version=api_version),
+                retry_policy, before_attempt=before_attempt, on_retry=on_retry)
+        except Exception as exc:
+            record.status = "error"
+            record.error = f"{type(exc).__name__}: {exc}"
+            record.attempt_errors = list(getattr(exc, "attempt_errors", []))
+            hint = omni_client.explain_error(exc)
+            if hint:
+                record.notes = f"{record.notes} | {hint}"
+            record.save(out.with_suffix(".api_run.json"))
+            print(f"실패: {record.error}")
+            if hint:
+                print(f"조치: {hint}")
+            failed = True
+            break                                      # 기준 방향이 없으면 나머지를 만들 수 없다
+        record.interaction_id = result.interaction_id
+        record.output_path = result.image_path
+        record.elapsed_s = result.elapsed_s
+        if result.usage:
+            record.notes = f"{record.notes} | usage={json.dumps(result.usage, ensure_ascii=False)}"
+        record.save(out.with_suffix(".api_run.json"))
+        made.append(plan.view_id)
+        print(f"저장: {out} ({result.bytes_written / 1e6:.2f}MB, {result.elapsed_s:.0f}초)")
+
+    if made:
+        ext = os.path.splitext(plans[0].output_path)[1]
+        order = [v["id"] for v in recipe["views"] if (version_dir / f"{v['id']}{ext}").is_file()]
+        sheet = reference_sheet.contact_sheet([version_dir / f"{v}{ext}" for v in order],
+                                              version_dir / "contact_sheet.png", int(recipe["contact_sheet"]["cell_px"]))
+        (version_dir / "sheet.json").write_text(json.dumps({
+            "product_id": product.id, "version": version, "mode": mode, "views": made,
+            "photos": [{"file": p.name, "sha256": reference_sheet.sha256_file(p)} for p in photos],
+            "appearance_en": product.appearance_en, "bible_version": bible.version,
+            "approved_by": args.approved_by, "created_at": datetime.now().isoformat(timespec="seconds"),
+            "estimated_cost_usd": round(guard.spent_usd, 4),
+            "policy_hashes": {p.name: p.policy_hash for p in (models, recipe_policy)},
+        }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"\n후보 {version}: {', '.join(made)} · 추정 ${guard.spent_usd:.2f}")
+        if sheet:
+            print(f"한눈에 보기: {sheet} (왼쪽부터 {', '.join(order)})")
+        else:
+            print("한눈에 보는 이음판은 만들지 못했다 (FFmpeg 가 없다). 낱장을 하나씩 연다.")
+        print(f"보고 고른다: ass sheet --product {product.id} --select {version} --by 이름")
+    return 1 if failed else 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -297,6 +606,35 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--name", default=None, help="결과 파일 이름(확장자 없이). 기본은 장면 id 와 실행 시각")
     r.add_argument("--dry-run", action="store_true", help="API를 호출하지 않고 요청만 출력")
     r.set_defaults(func=cmd_render)
+
+    a = sub.add_parser("assemble", help="장면 영상을 이어 붙여 초안 한 편을 만든다 (비용 없음)")
+    a.add_argument("--episode", default="product_intro")
+    a.add_argument("--pick", action="append", metavar="장면=RUN_ID",
+                   help="장면에 쓸 실행을 고른다. 예: --pick 2=20261120-101500. 기본은 가장 최근의 성공한 실행")
+    a.add_argument("--name", default=None, help="결과 파일 이름(확장자 없이). 기본은 레시피의 output_name")
+    a.add_argument("--dry-run", action="store_true", help="FFmpeg 를 실행하지 않고 계획과 명령만 출력")
+    a.set_defaults(func=cmd_assemble)
+
+    b = sub.add_parser("bible", help="제품 바이블을 점검한다 (비용 없음)")
+    b.add_argument("--product", default=None, help="한 제품만 볼 때. 기본은 전체")
+    b.set_defaults(func=cmd_bible)
+
+    s = sub.add_parser("sheet", help="제품 레퍼런스 시트 후보를 만들거나, 고른 후보를 기록한다")
+    s.add_argument("--product", default="moalab_aqua_serum")
+    s.add_argument("--views", default=None, help="만들 방향. 쉼표로 나눈다. 기본은 레시피의 전체")
+    s.add_argument("--dry-run", action="store_true", help="호출하지 않고 계획과 프롬프트만 출력")
+    s.add_argument("--approved-by", default=None, help="타사 제품의 이미지를 만들 때 승인한 사람")
+    s.add_argument("--select", action="append", metavar="버전 또는 방향=버전",
+                   help="사람이 고른 후보. 예: --select v002 (전체) --select label=v001 (한 방향)")
+    s.add_argument("--by", default=None, help="--select 와 함께. 고른 사람")
+    s.add_argument("--note", default=None, help="--select 와 함께. 고른 이유")
+    s.set_defaults(func=cmd_sheet)
+
+    k = sub.add_parser("cost", help="실행 기록을 모아 비용 장부와 오류 기록을 만든다")
+    k.add_argument("--episode", default=None, help="한 편만 볼 때. 기본은 전체")
+    k.add_argument("--billed", type=float, default=None, help="결제 화면에서 본 실제 청구액(USD)을 적는다")
+    k.add_argument("--note", default=None, help="--billed 와 함께 남길 메모")
+    k.set_defaults(func=cmd_cost)
     return parser
 
 

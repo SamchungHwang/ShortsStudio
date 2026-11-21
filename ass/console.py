@@ -13,7 +13,8 @@ import sys
 import threading
 import time
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import font as tkfont
+from tkinter import messagebox, simpledialog, ttk
 
 from ass import __version__
 from ass import console_model as model
@@ -22,10 +23,8 @@ from ass.policy import load_policy
 from ass.settings import OUTPUT_DIR, ROOT
 from ass.workflow import load_workflow, render_markdown, render_stack
 
-FONT = ("맑은 고딕", 10)
-FONT_BOLD = ("맑은 고딕", 10, "bold")
-FONT_TITLE = ("맑은 고딕", 18, "bold")
-FONT_MONO = ("Consolas", 10)
+UI_FAMILY = "맑은 고딕"
+MONO_FAMILY = "Consolas"
 NAVY = "#1F4E79"
 GREY = "#666666"
 GREEN = "#2E7D32"
@@ -46,9 +45,10 @@ class ConsoleApp:
         self.stop_requested = False
 
         root.title("ASS — Shorts 제작 콘솔")
-        root.geometry("1180x860")
-        root.minsize(980, 700)
-        root.option_add("*Font", FONT)
+        root.geometry("1320x960")
+        root.minsize(1000, 720)
+        self.font_size = model.load_font_size()
+        self._build_fonts()
 
         self.episode = tk.StringVar()
         self.scene = tk.StringVar(value=model.ALL_SCENES)
@@ -64,6 +64,7 @@ class ConsoleApp:
         self.started_at: float | None = None
         self.log_count = tk.StringVar(value="로그 0줄")
         self.file_rows: list = []
+        self.picks: dict[str, str] = {}      # 조립에 쓸 영상: 장면 번호 → 실행. 비어 있으면 가장 최근 것
 
         self._build_menu()
         self._build_header()
@@ -73,32 +74,88 @@ class ConsoleApp:
         self.reload()
         self.root.after(100, self._drain)
 
+    # ---------------------------------------------------------------- 글자 크기
+    def _build_fonts(self) -> None:
+        """글꼴을 이름 붙은 객체로 만든다. 크기를 바꾸면 그 글꼴을 쓰는 모든 곳이 함께 바뀐다."""
+        self.f_ui = tkfont.Font(root=self.root, family=UI_FAMILY, size=10)
+        self.f_bold = tkfont.Font(root=self.root, family=UI_FAMILY, size=10, weight="bold")
+        self.f_title = tkfont.Font(root=self.root, family=UI_FAMILY, size=18, weight="bold")
+        self.f_badge = tkfont.Font(root=self.root, family=UI_FAMILY, size=14, weight="bold")
+        self.f_mono = tkfont.Font(root=self.root, family=MONO_FAMILY, size=10)
+        self.root.option_add("*Font", self.f_ui)
+        self._apply_fonts()
+
+    def _px(self, width: int) -> int:
+        """표의 칸 너비를 글자 크기에 맞춰 늘린다. 기준은 10 크기 글자다."""
+        return int(width * max(self.font_size, 10) / 10)
+
+    def _apply_fonts(self) -> None:
+        sizes = model.font_sizes(self.font_size)
+        for font, key in ((self.f_ui, "ui"), (self.f_bold, "ui"), (self.f_title, "title"),
+                          (self.f_badge, "badge"), (self.f_mono, "mono")):
+            font.configure(size=sizes[key])
+        for name in ("TkDefaultFont", "TkTextFont", "TkMenuFont", "TkHeadingFont", "TkCaptionFont", "TkTooltipFont"):
+            try:        # ttk 위젯(표, 단추, 탭, 고르는 칸)은 이 이름 붙은 글꼴을 쓴다
+                tkfont.nametofont(name).configure(family=UI_FAMILY, size=sizes["ui"])
+            except tk.TclError:
+                pass
+        style = ttk.Style(self.root)
+        style.configure("Treeview", rowheight=sizes["row"], font=self.f_ui)
+        style.configure("Treeview.Heading", font=self.f_ui)
+        style.configure("TNotebook.Tab", font=self.f_ui, padding=(10, 4))
+        self.root.option_add("*TCombobox*Listbox.font", self.f_ui)      # 고르는 칸을 펼친 목록
+
+    def change_font(self, step: int) -> None:
+        """글자를 한 단계 키우거나 줄인다. step 이 0 이면 기본 크기로."""
+        self.font_size = model.clamp_font_size(self.font_size + step) if step else model.DEFAULT_FONT_SIZE
+        self._apply_fonts()
+        model.save_font_size(self.font_size)
+        self.notice.set(f"글자 크기 {self.font_size}")
+
     # ---------------------------------------------------------------- 화면
     def _build_menu(self) -> None:
         bar = tk.Menu(self.root)
         work = tk.Menu(bar, tearoff=0)
+        work.add_command(label="환경 점검 (ass doctor)", command=self.run_doctor)
+        work.add_separator()
+        work.add_command(label="제품 바이블 점검 (ass bible)", command=self.run_bible)
+        work.add_command(label="레퍼런스 고르기… (ass sheet --select)", command=self.choose_references)
+        work.add_separator()
+        work.add_command(label="조립에 쓸 영상 고르기… (ass assemble --pick)", command=self.choose_renders)
+        work.add_separator()
+        work.add_command(label="비용 장부와 오류 기록 만들기 (ass cost)", command=self.run_cost)
+        work.add_command(label="실제 청구액 적기… (ass cost --billed)", command=self.record_billed)
+        work.add_separator()
         work.add_command(label="공정 지도를 파일로 저장 (docs/workflow_map.md)", command=self.save_map)
         work.add_command(label="다시 읽기", command=self.reload)
         work.add_separator()
         work.add_command(label="끝내기", command=self.close)
         bar.add_cascade(label="작업", menu=work)
         view = tk.Menu(bar, tearoff=0)
+        view.add_command(label="글자 크게", accelerator="Ctrl +", command=lambda: self.change_font(1))
+        view.add_command(label="글자 작게", accelerator="Ctrl -", command=lambda: self.change_font(-1))
+        view.add_command(label="글자 기본 크기", accelerator="Ctrl 0", command=lambda: self.change_font(0))
+        view.add_separator()
         view.add_command(label="산출물 폴더 열기", command=self.open_outputs)
         view.add_command(label="저장소 폴더 열기", command=lambda: self._open(ROOT))
         bar.add_cascade(label="보기", menu=view)
         self.root.config(menu=bar)
         self.root.protocol("WM_DELETE_WINDOW", self.close)
+        for keys, step in ((("<Control-plus>", "<Control-equal>", "<Control-KP_Add>"), 1),
+                           (("<Control-minus>", "<Control-KP_Subtract>"), -1), (("<Control-Key-0>",), 0)):
+            for key in keys:
+                self.root.bind(key, lambda e, s=step: self.change_font(s))
 
     def _build_header(self) -> None:
         head = ttk.Frame(self.root, padding=(12, 10, 12, 0))
         head.pack(fill="x")
-        tk.Label(head, text=" ASS ", bg=NAVY, fg="white", font=("맑은 고딕", 14, "bold"),
+        tk.Label(head, text=" ASS ", bg=NAVY, fg="white", font=self.f_badge,
                  padx=10, pady=6).pack(side="left")
-        ttk.Label(head, text="  Shorts 제작 콘솔", font=FONT_TITLE).pack(side="left")
+        ttk.Label(head, text="  Shorts 제작 콘솔", font=self.f_title).pack(side="left")
         ttk.Label(head, textvariable=self.notice, foreground=GREY).pack(side="right")
         line = ttk.Frame(self.root, padding=(12, 4, 12, 4))
         line.pack(fill="x")
-        ttk.Label(line, textvariable=self.status, font=FONT_BOLD).pack(side="left")
+        ttk.Label(line, textvariable=self.status, font=self.f_bold).pack(side="left")
         ttk.Label(line, text="초안 제작 도구입니다 · 영상 공개는 사람이 승인한 뒤에 합니다",
                   foreground=GREY).pack(side="right")
 
@@ -147,14 +204,14 @@ class ConsoleApp:
         # 실행 상태: 글자는 늘 보이고, 움직이는 막대는 실행 중에만 보인다.
         state = ttk.Frame(box)
         state.grid(row=3, column=6, padx=4, sticky="w")
-        self.run_label = tk.Label(state, textvariable=self.run_text, font=FONT_BOLD, fg=GREY,
+        self.run_label = tk.Label(state, textvariable=self.run_text, font=self.f_bold, fg=GREY,
                                   width=24, anchor="w")
         self.run_label.pack(anchor="w")
         self.progress = ttk.Progressbar(state, mode="indeterminate", length=180)
 
         ttk.Checkbutton(box, text="호출하지 않고 요청만 확인 (비용 없음)", variable=self.dry_run,
                         command=self.on_selection).grid(row=4, column=1, columnspan=2, sticky="w", padx=6)
-        ttk.Label(box, textvariable=self.hint, foreground=GREY, wraplength=640, justify="left").grid(
+        ttk.Label(box, textvariable=self.hint, foreground=GREY, wraplength=720, justify="left").grid(
             row=4, column=3, columnspan=4, sticky="w")
 
     def _build_stages(self) -> None:
@@ -167,7 +224,7 @@ class ConsoleApp:
         self.stage_tree = ttk.Treeview(box, columns=columns, show="headings", height=6, selectmode="browse")
         for col in columns:
             self.stage_tree.heading(col, text=titles[col])
-            self.stage_tree.column(col, width=widths[col], anchor="center" if col in ("no", "chapters") else "w")
+            self.stage_tree.column(col, width=self._px(widths[col]), anchor="center" if col in ("no", "chapters") else "w")
         self.stage_tree.pack(fill="x")
         self.stage_tree.bind("<<TreeviewSelect>>", lambda e: self.on_stage_row())
 
@@ -188,7 +245,7 @@ class ConsoleApp:
                 ("mark", "", 36, "center"), ("kind", "구분", 56, "center"), ("path", "파일", 430, "w"),
                 ("what", "여기서 가져오는 것 / 여기에 쓰는 것", 420, "w"), ("status", "고친 때", 170, "w")):
             self.files_tree.heading(col, text=title)
-            self.files_tree.column(col, width=width, anchor=anchor)
+            self.files_tree.column(col, width=self._px(width), anchor=anchor)
         self.files_tree.tag_configure("write", foreground="#1F5FA8")
         self.files_tree.tag_configure("missing", foreground="#B4501E")
         files_scroll = ttk.Scrollbar(files, command=self.files_tree.yview)
@@ -203,7 +260,7 @@ class ConsoleApp:
         self.output_tree = ttk.Treeview(out, columns=("path", "time", "size"), show="headings", height=8)
         for col, title, width in (("path", "파일", 620), ("time", "만든 때", 150), ("size", "크기", 90)):
             self.output_tree.heading(col, text=title)
-            self.output_tree.column(col, width=width, anchor="w" if col == "path" else "center")
+            self.output_tree.column(col, width=self._px(width), anchor="w" if col == "path" else "center")
         self.output_tree.pack(fill="both", expand=True, side="top")
         self.output_tree.bind("<Double-1>", lambda e: self.open_selected_output())
         bar = ttk.Frame(out)
@@ -217,7 +274,7 @@ class ConsoleApp:
         log = ttk.Frame(self.tabs)
         self.tabs.add(log, text="실행 로그")
         self.log_tab = log
-        self.log_text = tk.Text(log, height=10, font=FONT_MONO, wrap="word", state="disabled")
+        self.log_text = tk.Text(log, height=10, font=self.f_mono, wrap="word", state="disabled")
         scroll = ttk.Scrollbar(log, command=self.log_text.yview)
         self.log_text.configure(yscrollcommand=scroll.set)
         bar = ttk.Frame(log)
@@ -231,7 +288,7 @@ class ConsoleApp:
     def _text_tab(self, title: str) -> tk.Text:
         frame = ttk.Frame(self.tabs)
         self.tabs.add(frame, text=title)
-        text = tk.Text(frame, height=10, font=FONT_MONO, wrap="word", state="disabled")
+        text = tk.Text(frame, height=10, font=self.f_mono, wrap="word", state="disabled")
         scroll = ttk.Scrollbar(frame, command=text.yview)
         text.configure(yscrollcommand=scroll.set)
         scroll.pack(side="right", fill="y")
@@ -288,6 +345,7 @@ class ConsoleApp:
 
     def on_episode(self) -> None:
         episode = self.episode.get()
+        self.picks = {}                      # 편이 바뀌면 고른 영상도 버린다
         if not episode:
             self.summary.set("examples 폴더에 장면 사양이 없습니다")
             return
@@ -306,33 +364,40 @@ class ConsoleApp:
         """선택이 바뀔 때마다 안내문, 실행 버튼, 미리보기를 맞춘다."""
         command = self.command.get()
         note = self.workflow.command_notes.get(command, "")
-        runnable = command in self.available and command in ("compile", "render")
+        runnable = command in self.available and command in model.RUNNABLE
         if command not in self.available:
             self.hint.set(f"ass {command} — 아직 없는 명령입니다. {note}")
         elif not runnable:
             self.hint.set(f"ass {command} — {note}")
         else:
             cost = ""
-            if command == "render":
+            if command == "assemble":
+                cost = " · 계획만 확인합니다" if self.dry_run.get() else " · 비용 없음"
+                if self.picks:
+                    cost += " · 직접 고른 영상: " + ", ".join(f"장면 {n}={r}" for n, r in sorted(self.picks.items()))
+            if command in ("render", "sheet"):
                 try:
                     amount = model.paid_estimate(command, self.episode.get(), self.scene.get(),
                                                  self.duration.get(), self.dry_run.get())
                     cost = f" · 이번 실행 추정 ${amount:.2f}" if amount else " · 요청만 확인합니다"
                 except (UnknownPrice, ValueError) as exc:
                     cost = f" · {exc}"
-            summary = model.files_summary(model.command_files(command, self.episode.get(), self.scene.get()))
+            summary = model.files_summary(self._files(command))
             self.hint.set(f"ass {command} — {note}{cost}" + (f" · {summary}" if summary else ""))
         busy = self.process is not None
         self.run_button.configure(state="normal" if runnable and not busy else "disabled")
         self.refresh_files()
         self.refresh_preview()
 
+    def _files(self, command: str) -> list:
+        return model.command_files(command, self.episode.get(), self.scene.get(), picks=self.picks)
+
     def refresh_files(self) -> None:
         """고른 명령이 읽는 파일과 쓰는 파일을 실행 전에 보여 준다."""
         command = self.command.get()
         self.files_tree.delete(*self.files_tree.get_children())
         try:
-            self.file_rows = model.command_files(command, self.episode.get(), self.scene.get())
+            self.file_rows = self._files(command)
         except Exception as exc:
             self.file_rows = []
             self.files_note.set(f"파일 목록을 만들지 못했습니다: {exc}")
@@ -344,7 +409,8 @@ class ConsoleApp:
         if self.file_rows:
             self.files_note.set(
                 f"ass {command} — {model.files_summary(self.file_rows)} · 두 번 누르면 파일이 열립니다 · "
-                "결과를 바꾸려면 ‘읽음’ 쪽 파일을 고칩니다. ‘씀’ 쪽은 실행할 때마다 다시 써집니다")
+                + ("다른 실행의 영상을 쓰려면 [작업] → 조립에 쓸 영상 고르기" if command == "assemble" else
+                   "결과를 바꾸려면 ‘읽음’ 쪽 파일을 고칩니다. ‘씀’ 쪽은 실행할 때마다 다시 써집니다"))
         else:
             self.files_note.set(f"ass {command} — 이 명령이 생기면 여기에 읽고 쓰는 파일이 나옵니다")
 
@@ -383,8 +449,18 @@ class ConsoleApp:
         if self.process is not None:
             return
         command, episode = self.command.get(), self.episode.get()
+        approved_by = ""
         try:
-            runs = model.build_runs(command, episode, self.scene.get(), self.duration.get(), self.dry_run.get())
+            if command == "sheet" and any(not p.is_own for p in model.episode_products(episode)):
+                approved_by = simpledialog.askstring(
+                    "타사 제품 승인",
+                    "이 편에는 타사 제품이 나옵니다. 타사 제품의 이미지를 만드는 일은 사람이 승인합니다.\n"
+                    "실제 타사 제품이라면 직접 구입해 찍은 사진만 씁니다.\n\n승인하는 사람의 이름을 적으세요.",
+                    parent=self.root) or ""
+                if not approved_by.strip():
+                    return
+            runs = model.build_runs(command, episode, self.scene.get(), self.duration.get(), self.dry_run.get(),
+                                    picks=self.picks, approved_by=approved_by.strip())
             cost = model.paid_estimate(command, episode, self.scene.get(), self.duration.get(), self.dry_run.get())
         except (UnknownPrice, ValueError) as exc:
             messagebox.showwarning("실행할 수 없습니다", str(exc))
@@ -399,17 +475,148 @@ class ConsoleApp:
                 return
             if not messagebox.askokcancel(
                     "비용이 드는 실행입니다",
-                    f"{episode} · 장면 {self.scene.get()} · 실제로 생성합니다.\n\n"
+                    (f"{episode} 의 제품 레퍼런스 시트를 실제로 생성합니다.\n\n" if command == "sheet" else
+                     f"{episode} · 장면 {self.scene.get()} · 실제로 생성합니다.\n\n") +
                     f"추정 비용 ${cost:.2f} (실행 예산 ${budget:.2f})\n"
                     "추정값이며 실제 청구액은 결제 화면에서 확인해야 합니다.\n\n실행할까요?"):
                 return
-        self.pending = runs
-        self.stop_requested = False
         reads = [r for r in getattr(self, "file_rows", []) if r.kind == "읽음"]
         if reads:
             self._log(f"읽는 파일 {len(reads)}개:")
             for r in reads:
                 self._log(f"  {r.mark} {r.path}" + ("" if r.exists else f"  ← {r.status}"))
+        self._begin(runs)
+
+    def run_cost(self) -> None:
+        """실행 기록을 모아 비용 장부를 만든다. 호출하지 않으므로 묻지 않고 실행한다."""
+        if self.process is not None:
+            return
+        self._begin(model.build_runs("cost", self.episode.get()))
+
+    def run_bible(self) -> None:
+        if self.process is not None:
+            return
+        self._begin(model.build_runs("bible", self.episode.get()))
+
+    def choose_references(self) -> None:
+        """후보 가운데 쓸 레퍼런스를 사람이 고른다. 고른 사람의 이름을 함께 적는다."""
+        if self.process is not None:
+            return
+        episode = self.episode.get()
+        try:
+            choices = model.sheet_choices(episode)
+        except Exception as exc:
+            messagebox.showwarning("고를 수 없습니다", str(exc))
+            return
+        if not any(c.versions for c in choices):
+            messagebox.showinfo("고를 후보가 없습니다",
+                                "만들어 둔 후보가 없습니다.\n단계 ‘3. 제품 레퍼런스’에서 후보를 먼저 만드세요.")
+            return
+        keep = "그대로 둔다"
+        win = tk.Toplevel(self.root)
+        win.title("레퍼런스 고르기")
+        win.transient(self.root)
+        ttk.Label(win, padding=10, text="후보 이미지를 ‘산출물’ 탭에서 열어 보고, 방향마다 쓸 후보를 고릅니다. "
+                                        "‘그대로 둔다’는 지금 골라져 있는 것을 바꾸지 않습니다."
+                  ).grid(row=0, column=0, columnspan=3, sticky="w")
+        selected: dict[tuple[str, str], tk.StringVar] = {}
+        for row, c in enumerate(choices, 1):
+            ttk.Label(win, text=c.product_name, padding=(10, 3)).grid(row=row, column=0, sticky="w")
+            ttk.Label(win, text=f"{c.view_name} ({c.view_id})", padding=(10, 3)).grid(row=row, column=1, sticky="w")
+            now = f" · 지금 {c.current}" if c.current else " · 아직 고르지 않음"
+            var = tk.StringVar(value=keep if (c.current or not c.versions) else c.versions[0])
+            ttk.Combobox(win, textvariable=var, state="readonly" if c.versions else "disabled", width=14,
+                         values=[keep] + c.versions).grid(row=row, column=2, sticky="w", padx=6, pady=3)
+            ttk.Label(win, text=now if c.versions else " · 후보 없음", foreground=GREY).grid(row=row, column=3, sticky="w", padx=6)
+            selected[(c.product_id, c.view_id)] = var
+
+        def apply() -> None:
+            picks = {key: var.get() for key, var in selected.items() if var.get() != keep}
+            if not picks:
+                win.destroy()
+                return
+            by = simpledialog.askstring("고른 사람", "고른 사람의 이름을 적으세요. 기록에 남습니다.", parent=win) or ""
+            if not by.strip():
+                return
+            note = simpledialog.askstring("고른 이유", "고른 이유를 한 줄로 적으세요. 비워도 됩니다.", parent=win) or ""
+            win.destroy()
+            self._begin(model.select_runs(picks, by.strip(), note.strip()))
+
+        bar = ttk.Frame(win, padding=10)
+        bar.grid(row=len(choices) + 1, column=0, columnspan=4, sticky="e")
+        ttk.Button(bar, text="취소", command=win.destroy).pack(side="right", padx=4)
+        ttk.Button(bar, text="기록", command=apply).pack(side="right", padx=4)
+        win.grab_set()
+
+    def run_doctor(self) -> None:
+        if self.process is not None:
+            return
+        self._begin(model.build_runs("doctor", self.episode.get()))
+
+    def record_billed(self) -> None:
+        """결제 화면에서 본 실제 청구액을 장부에 적는다."""
+        if self.process is not None:
+            return
+        episode = self.episode.get()
+        amount = simpledialog.askfloat(
+            "실제 청구액 적기",
+            f"{episode} 편을 만드는 데 실제로 청구된 금액(USD)을 적습니다.\n"
+            "AI Studio 의 Billing 화면에서 생성 전과 후의 잔액 차이를 봅니다.",
+            parent=self.root, minvalue=0.0)
+        if amount is None:
+            return
+        note = simpledialog.askstring("메모", "함께 남길 메모 (예: 생성 전 잔액 10.00, 후 6.85). 비워도 됩니다.",
+                                      parent=self.root) or ""
+        argv = ["cost", "--episode", episode, "--billed", f"{amount:.2f}"]
+        self._begin([argv + (["--note", note] if note else [])])
+
+    def choose_renders(self) -> None:
+        """장면마다 조립에 쓸 영상을 고른다. 고르지 않으면 가장 최근의 성공한 실행을 쓴다."""
+        episode = self.episode.get()
+        try:
+            choices = model.render_choices(episode)
+        except Exception as exc:
+            messagebox.showwarning("고를 수 없습니다", str(exc))
+            return
+        if not any(runs for _, _, runs in choices):
+            messagebox.showinfo("고를 영상이 없습니다",
+                                "성공한 생성이 아직 없습니다.\n단계 ‘4. 장면 생성’에서 장면을 먼저 생성하세요.")
+            return
+        latest = "가장 최근 것"
+        win = tk.Toplevel(self.root)
+        win.title("조립에 쓸 영상 고르기")
+        win.transient(self.root)
+        ttk.Label(win, text=f"{episode} · 장면마다 쓸 영상을 고릅니다. 고르지 않으면 가장 최근의 성공한 실행을 씁니다.",
+                  padding=10).grid(row=0, column=0, columnspan=2, sticky="w")
+        selected: dict[str, tuple[tk.StringVar, dict[str, str]]] = {}
+        for row, (n, scene_id, runs) in enumerate(choices, 1):
+            ttk.Label(win, text=f"장면 {n} · {scene_id}", padding=(10, 4)).grid(row=row, column=0, sticky="w")
+            labels = {c.label: c.run_id for c in runs}
+            var = tk.StringVar(value=latest)
+            for label, run_id in labels.items():
+                if self.picks.get(str(n)) == run_id:
+                    var.set(label)
+            box = ttk.Combobox(win, textvariable=var, state="readonly" if runs else "disabled", width=46,
+                               values=[latest] + list(labels))
+            box.grid(row=row, column=1, sticky="w", padx=10, pady=4)
+            if not runs:
+                var.set("성공한 생성이 없습니다")
+            selected[str(n)] = (var, labels)
+
+        def apply() -> None:
+            self.picks = {n: labels[var.get()] for n, (var, labels) in selected.items() if var.get() in labels}
+            win.destroy()
+            self.on_selection()
+
+        bar = ttk.Frame(win, padding=10)
+        bar.grid(row=len(choices) + 1, column=0, columnspan=2, sticky="e")
+        ttk.Button(bar, text="취소", command=win.destroy).pack(side="right", padx=4)
+        ttk.Button(bar, text="적용", command=apply).pack(side="right", padx=4)
+        win.grab_set()
+
+    def _begin(self, runs: list[list[str]]) -> None:
+        self.pending = runs
+        self.stop_requested = False
         self.tabs.select(self.log_tab)
         self.run_button.configure(state="disabled")
         self.stop_button.configure(state="normal")

@@ -1,0 +1,17 @@
+# bible_rules.yaml — 제품 바이블 점검 규칙 (5.2절). `ass bible` 이 읽는다.
+# 낱말 목록은 초기 가정값이다. 제품군에 맞게 고친다.
+version: "2026-11-21"
+appearance:
+  min_words: 6
+  max_words: 40
+  # 외형 서술에 넣지 않는 낱말: 눈에 보이지 않는 것(품질, 효능, 느낌)
+  banned_en: [premium, luxury, luxurious, best, perfect, effective, powerful, moisturizing, hydrating,
+              "anti-aging", soothing, gentle, safe, clinically, popular, famous, high-quality, beautiful, elegant]
+  # 있으면 좋은 것. 없으면 알려 주기만 한다
+  container_en: [bottle, tube, jar, pump, box, pouch, stick, can, compact, sachet, tub, vial, dropper, spray]
+  color_en: [white, black, grey, gray, blue, green, red, pink, yellow, orange, beige, brown, clear, transparent,
+             frosted, silver, gold, purple, navy, ivory, amber]
+  size_pattern: "\\b\\d+(\\.\\d+)?\\s?(ml|g|oz|l|kg|cm|mm)\\b"
+fact:
+  placeholder_sources: ["가상 제품 설정"]      # 예제용 출처. 내 제품에서는 실제 근거로 바꾼다
+  vague_sources: ["인터넷", "블로그", "후기", "리뷰", "카더라", "들은 것"]

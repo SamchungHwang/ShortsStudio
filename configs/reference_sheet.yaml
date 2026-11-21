@@ -1,0 +1,44 @@
+# reference_sheet.yaml — 레퍼런스 시트 레시피 (5.3절). `ass sheet` 이 읽는다.
+# 레퍼런스 시트는 제품 하나를 정해진 몇 방향에서 본 이미지 묶음이다.
+# 문구와 방향은 초기 가정값이다. 실험 E17 뒤에 고친다.
+version: "2026-11-21"
+image:
+  size: "1K"                  # 1K | 2K | 4K. 대문자 K 만 받는다 (공식 문서)
+  aspect_ratio: "1:1"
+  mime_type: "image/png"
+# 모든 방향이 함께 쓰는 촬영 조건. 장면의 분위기를 넣지 않는다. 제품만 또렷하게 보이면 된다
+style_en: >-
+  Studio product photo on a plain light grey seamless background, soft even lighting, no props,
+  no people, no added text or graphics. The product is centered, fully in frame and in sharp focus.
+# 사진이나 기준 이미지를 함께 보낼 때 덧붙이는 문장
+keep_en: >-
+  The attached images show the exact product. Keep its shape, proportions, colors, cap and label
+  unchanged. Do not redesign it.
+# 기준 방향. 사진이 없을 때 이것을 먼저 만들고, 나머지 방향은 이것을 보고 그리게 한다
+anchor_view: front
+views:
+  - id: front
+    name_ko: 정면
+    prompt_en: "Front view at eye level, label facing the camera."
+  - id: three_quarter
+    name_ko: 비스듬히
+    prompt_en: "Three-quarter view from the front left, camera slightly above the product."
+  - id: side
+    name_ko: 옆면
+    prompt_en: "Side view at eye level, showing the profile of the container."
+  - id: label
+    name_ko: 라벨 가까이
+    prompt_en: "Close-up of the label area, label text sharp and legible, the container edges still visible."
+  - id: in_hand
+    name_ko: 손에 쥔 크기
+    prompt_en: "The product held upright in one adult hand to show its real size. Only the hand and wrist are visible."
+    allow_people: true        # 이 방향만 손이 나온다. style_en 의 'no people' 을 뺀다
+photos:
+  folder: "assets/products/{product_id}/photos"     # 본인이 찍은 제품 사진을 넣는 곳 (예제 폴더 기준)
+  extensions: [".jpg", ".jpeg", ".png", ".webp"]
+  max_per_call: 6             # 한 번에 함께 보내는 사진 수. 모델 상한은 사물 10장, 전체 14장
+selected:
+  folder: "assets/products/{product_id}/reference"  # 사람이 고른 이미지가 들어가는 곳
+  manifest: "assets/products/{product_id}/reference_manifest.json"
+contact_sheet:
+  cell_px: 512                # 한눈에 보는 이음판의 칸 크기

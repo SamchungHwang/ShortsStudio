@@ -21,23 +21,40 @@ class Var:
 
 
 @pytest.fixture
-def console(monkeypatch):
+def console(monkeypatch, tmp_path):
     def widget(*args, **kwargs):      # 어떤 위젯이든 호출을 받아 주는 가짜
         return MagicMock()
 
     tk = types.ModuleType("tkinter")
-    tk.Tk = tk.Menu = tk.Label = tk.Text = widget
+    tk.Tk = tk.Menu = tk.Label = tk.Text = tk.Toplevel = widget
     tk.StringVar = tk.BooleanVar = Var
     ttk = types.ModuleType("tkinter.ttk")
     for name in ("Frame", "Label", "LabelFrame", "Entry", "Button", "Combobox", "Checkbutton",
                  "Progressbar", "Treeview", "Notebook", "Scrollbar"):
         setattr(ttk, name, widget)
     messagebox = MagicMock()
-    tk.ttk, tk.messagebox = ttk, messagebox
+    simpledialog = MagicMock()
+    font = types.ModuleType("tkinter.font")
+    font.Font = widget
+    font.nametofont = widget
+    tk.font, tk.TclError, ttk.Style = font, RuntimeError, widget
+    monkeypatch.setitem(sys.modules, "tkinter.font", font)
+    tk.ttk, tk.messagebox, tk.simpledialog = ttk, messagebox, simpledialog
+    monkeypatch.setitem(sys.modules, "tkinter.simpledialog", simpledialog)
     monkeypatch.setitem(sys.modules, "tkinter", tk)
     monkeypatch.setitem(sys.modules, "tkinter.ttk", ttk)
     monkeypatch.setitem(sys.modules, "tkinter.messagebox", messagebox)
     monkeypatch.delitem(sys.modules, "ass.console", raising=False)
+    from ass import console_model
+
+    monkeypatch.setattr(console_model, "PREFS_PATH", tmp_path / ".ass_console.json")
+    monkeypatch.setattr(console_model.load_font_size, "__defaults__", (tmp_path / ".ass_console.json",))
+    monkeypatch.setattr(console_model.save_font_size, "__defaults__", (tmp_path / ".ass_console.json",))
+    # 고르는 창은 outputs 를 읽는다. 실제로 생성한 영상이 있는 PC 에서도 같은 결과가 나오게 빈 폴더를 보게 한다
+    empty = tmp_path / "outputs"
+    render_choices, sheet_choices = console_model.render_choices, console_model.sheet_choices
+    monkeypatch.setattr(console_model, "render_choices", lambda episode: render_choices(episode, output_dir=empty))
+    monkeypatch.setattr(console_model, "sheet_choices", lambda episode: sheet_choices(episode, output_dir=empty))
     from ass import console as module
 
     monkeypatch.setattr(module, "messagebox", messagebox)
@@ -64,7 +81,7 @@ class FakeProcess:
 def test_console_opens_on_script_stage_with_compile_ready(console):
     module, _ = console
     app = _app(module)
-    assert app.status.get().startswith("명령 12개 중 2개 있음")
+    assert app.status.get().startswith("명령 12개 중 4개 있음")
     assert app.stage.get() == "2. 대본" and app.command.get() == "compile"
     assert app.episode.get() == "product_intro"
     assert "제품 설명 · 장면 3개 · 45초" in app.summary.get()
@@ -76,7 +93,9 @@ def test_missing_command_is_explained_and_not_runnable(console):
     app = _app(module)
     app.stage.set("6. 조립·업로드")
     app.on_stage()
-    assert app.command.get() == "assemble"
+    assert app.command.get() == "assemble" and "계획만 확인합니다" in app.hint.get()   # 4장에서 생겼다
+    app.command.set("publish")
+    app.on_selection()
     assert "아직 없는 명령입니다" in app.hint.get()
     app.run_button.configure.assert_called_with(state="disabled")
 
@@ -177,3 +196,82 @@ def test_files_tab_is_empty_with_explanation_for_missing_command(console):
     app.stage.set("5. 오디오")
     app.on_stage()
     assert app.file_rows == [] and "이 명령이 생기면" in app.files_note.get()
+
+
+def test_작업_메뉴는_명령을_그대로_실행한다(console, monkeypatch):
+    module, messagebox = console
+    app = _app(module)
+    started = []
+    monkeypatch.setattr(app, "_begin", started.append)
+    app.run_doctor()
+    app.run_cost()
+    module.simpledialog.askfloat.return_value = 3.15
+    module.simpledialog.askstring.return_value = "생성 전 10.00, 후 6.85"
+    app.record_billed()
+    module.simpledialog.askfloat.return_value = None         # 취소하면 아무 일도 하지 않는다
+    app.record_billed()
+    assert started == [
+        [["doctor"]],
+        [["cost", "--episode", "product_intro"]],
+        [["cost", "--episode", "product_intro", "--billed", "3.15", "--note", "생성 전 10.00, 후 6.85"]],
+    ]
+
+
+def test_고른_영상은_assemble_의_pick_으로_간다(console, monkeypatch):
+    module, messagebox = console
+    app = _app(module)
+    app.choose_renders()                                      # 성공한 생성이 없으면 창을 열지 않고 알려 준다
+    messagebox.showinfo.assert_called_once()
+    app.stage.set("6. 조립·업로드")
+    app.on_stage()
+    app.picks = {"2": "20261120-110200"}
+    app.on_selection()
+    assert "직접 고른 영상: 장면 2=20261120-110200" in app.hint.get()
+    started = []
+    monkeypatch.setattr(app, "_begin", started.append)
+    app.run()
+    assert started == [[["assemble", "--episode", "product_intro", "--pick", "2=20261120-110200", "--dry-run"]]]
+    app.on_episode()                                          # 편을 바꾸면 고른 것을 버린다
+    assert app.picks == {}
+
+
+def test_글자_크기를_바꾸면_저장되고_다음에_그대로_열린다(console):
+    module, _ = console
+    from ass import console_model as m
+
+    app = _app(module)
+    assert app.font_size == m.DEFAULT_FONT_SIZE == 12
+    app.change_font(1)
+    app.change_font(1)
+    assert app.font_size == 14 and "글자 크기 14" in app.notice.get()
+    app.f_mono.configure.assert_called_with(size=14)
+    assert _app(module).font_size == 14                       # 다시 열어도 그대로
+    for _ in range(10):
+        app.change_font(1)
+    assert app.font_size == m.MAX_FONT_SIZE
+    app.change_font(0)
+    assert app.font_size == 12
+    assert m.font_sizes(12) == {"ui": 12, "mono": 12, "badge": 16, "title": 20, "row": 28}
+
+
+def test_레퍼런스_단계는_sheet_를_실행하고_비용을_먼저_묻는다(console, monkeypatch):
+    module, messagebox = console
+    app = _app(module)
+    app.stage.set("3. 제품 레퍼런스")
+    app.on_stage()
+    assert app.command.get() == "sheet" and "요청만 확인합니다" in app.hint.get()
+    started = []
+    monkeypatch.setattr(app, "_begin", started.append)
+    app.run()
+    assert started == [[["sheet", "--product", "moalab_aqua_serum", "--dry-run"]]]
+    messagebox.askokcancel.assert_not_called()
+    app.dry_run.set(False)
+    app.on_selection()
+    assert "이번 실행 추정 $0.17" in app.hint.get()
+    messagebox.askokcancel.return_value = False
+    app.run()
+    assert "레퍼런스 시트를 실제로 생성합니다" in messagebox.askokcancel.call_args[0][1] and len(started) == 1
+    app.run_bible()
+    assert started[-1] == [["bible"]]
+    app.choose_references()                                   # 후보가 없으면 창을 열지 않는다
+    assert "후보를 먼저 만드세요" in messagebox.showinfo.call_args[0][1]

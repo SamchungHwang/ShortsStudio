@@ -1,4 +1,4 @@
-"""실행 기록 (2.5절). 호출마다 api_run.json 을 남긴다.
+"""실행 기록 (2.5절, 4.3절). 호출마다 api_run.json 을 남긴다.
 
 모델 ID, SDK 버전, 일시, 요청, 추정 비용, 처리 시간을 함께 적어 두면
 '검증 일자' 상자와 부록 A의 실험 기록을 이 파일에서 그대로 옮길 수 있다.
@@ -25,6 +25,8 @@ def _sdk_version() -> str | None:
 class RunRecord(BaseModel):
     run_id: str
     purpose: str                               # 예: "ch02 first render", "E01 reference limit"
+    episode: str | None = None                 # 편 이름. 비용 장부(ass cost)가 편별로 묶는 데 쓴다
+    scene_id: str | None = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     model: str
     sdk: str = "google-genai"
@@ -39,6 +41,8 @@ class RunRecord(BaseModel):
     estimated_cost_usd: float | None = None    # 추정값. 실제 청구액은 결제 화면에서 확인해 billed_cost_usd 에 적는다
     billed_cost_usd: float | None = None
     status: str = "ok"                         # ok | error | dry_run
+    attempts: int = 0                          # 실제로 호출한 횟수. dry_run 은 0
+    attempt_errors: list[str] = []             # 다시 시도하기 전에 났던 오류 (4.4절)
     error: str | None = None
     notes: str | None = None
 

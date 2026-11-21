@@ -25,7 +25,7 @@
 
 ## 내 제품으로 바꾸기
 1. `product_bible.yaml` 에 내 제품의 외형(appearance_en)과 사실(facts, 출처 포함)을 적는다.
-2. 제품 사진을 `assets/products/<제품 id>/` 에 넣는다(5장).
+2. 본인이 찍은 제품 사진을 `assets/products/<제품 id>/photos/` 에 넣고 `ass bible`, `ass sheet` 로 레퍼런스를 만들어 고른다(5장).
 3. `source_briefs/` 의 예시를 복사해 내 소재(아이디어, 본인 블로그 글, 본인 영상의 대본)로 바꾼다.
 4. 장면 사양의 products, 내레이션, evidence 를 고친 뒤 `python scripts/compile_scenes.py` 로 확인한다.
 

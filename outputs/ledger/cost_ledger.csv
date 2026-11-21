@@ -1,0 +1,12 @@
+﻿run_id,created_at,episode,scene_id,purpose,model,duration_s,resolution,status,attempts,elapsed_s,estimated_cost_usd,billed_cost_usd,error,record
+20261119-113623,2026-11-19T02:36:23.342038+00:00,adhoc,,ass render adhoc prompt,gemini-omni-1.2-flash,5.0,720p,dry_run,0,,0.35,,,renders/adhoc/first_call.api_run.json
+20261121-100433,2026-11-21T01:04:33.090870+00:00,product_intro,serum_s01,ass render product_intro serum_s01,gemini-omni-1.2-flash,15.0,720p,dry_run,0,,1.05,,,renders/product_intro/serum_s01.20261121-100433.api_run.json
+20261121-100433,2026-11-21T01:04:33.677532+00:00,product_intro,serum_s02,ass render product_intro serum_s02,gemini-omni-1.2-flash,15.0,720p,dry_run,0,,1.05,,,renders/product_intro/serum_s02.20261121-100433.api_run.json
+20261121-100434,2026-11-21T01:04:34.349627+00:00,product_intro,serum_s03,ass render product_intro serum_s03,gemini-omni-1.2-flash,15.0,720p,dry_run,0,,1.05,,,renders/product_intro/serum_s03.20261121-100434.api_run.json
+20261121-101435,2026-11-21T01:14:35.200780+00:00,product_intro,serum_s01,ass render product_intro serum_s01,gemini-omni-1.2-flash,15.0,720p,dry_run,0,,1.05,,,renders/product_intro/serum_s01.20261121-101435.api_run.json
+20261121-101435,2026-11-21T01:14:35.834188+00:00,product_intro,serum_s02,ass render product_intro serum_s02,gemini-omni-1.2-flash,15.0,720p,dry_run,0,,1.05,,,renders/product_intro/serum_s02.20261121-101435.api_run.json
+20261121-101436,2026-11-21T01:14:36.528394+00:00,product_intro,serum_s03,ass render product_intro serum_s03,gemini-omni-1.2-flash,15.0,720p,dry_run,0,,1.05,,,renders/product_intro/serum_s03.20261121-101436.api_run.json
+20261121-101541,2026-11-21T01:15:41.280876+00:00,product_intro,serum_s01,ass render product_intro serum_s01,gemini-omni-1.2-flash,15.0,720p,dry_run,0,,1.05,,,renders/product_intro/serum_s01.20261121-101541.api_run.json
+20261121-102015,2026-11-21T01:20:15.800330+00:00,product_intro,serum_s01,ass render product_intro serum_s01,gemini-omni-1.2-flash,15.0,720p,ok,1,60.62,1.05,,,renders/product_intro/serum_s01.20261121-102015.api_run.json
+20261121-103642,2026-11-21T01:36:42.142115+00:00,product_intro,serum_s02,ass render product_intro serum_s02,gemini-omni-1.2-flash,15.0,720p,ok,1,62.78,1.05,,,renders/product_intro/serum_s02.20261121-103642.api_run.json
+20261121-103830,2026-11-21T01:38:30.776439+00:00,product_intro,serum_s03,ass render product_intro serum_s03,gemini-omni-1.2-flash,15.0,720p,ok,1,63.58,1.05,,,renders/product_intro/serum_s03.20261121-103830.api_run.json
