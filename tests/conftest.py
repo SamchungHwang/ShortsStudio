@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import os
+
+os.environ["ASS_IGNORE_PREFS"] = "1"      # 테스트는 이 PC 의 현재 프로젝트를 보지 않는다. 늘 견본으로 돈다
+
 import pytest
 
 from ass.policy import load_policy

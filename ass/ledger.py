@@ -33,12 +33,14 @@ class LedgerRow(BaseModel):
     billed_cost_usd: float | None = None
     error: str = ""
     notes: str = ""
+    reused_from: str = ""             # 다른 프로젝트에서 가져온 영상이면 그 출처. 여기서는 돈이 들지 않았다
+    original_cost_usd: float = 0.0
     record: str = ""                  # 실행 기록 파일 (outputs 기준 경로)
 
     @property
     def calls(self) -> int:
         """실제로 호출한 횟수. 예전 기록에는 attempts 가 없어 상태로 미룬다."""
-        if self.status == "dry_run":
+        if self.status == "dry_run" or self.reused_from:
             return 0
         return max(self.attempts, 1)
 
@@ -73,7 +75,8 @@ def row_from_record(doc: dict[str, Any], record_path: Path, output_dir: Path) ->
         status=str(doc.get("status", "")), attempts=int(doc.get("attempts") or 0),
         elapsed_s=doc.get("elapsed_s"), estimated_cost_usd=float(doc.get("estimated_cost_usd") or 0.0),
         billed_cost_usd=doc.get("billed_cost_usd"), error=str(doc.get("error") or ""),
-        notes=str(doc.get("notes") or ""), record=rel,
+        notes=str(doc.get("notes") or ""), record=rel, reused_from=str(doc.get("reused_from") or ""),
+        original_cost_usd=float(doc.get("original_cost_usd") or 0.0),
     )
 
 
@@ -98,6 +101,8 @@ class Summary(BaseModel):
     failed_calls: int = 0              # 실패로 끝난 호출 + 다시 시도하기 전에 실패한 시도
     failed_usd: float = 0.0            # 그 추정 비용. 청구 여부는 확인하지 못했다
     dry_runs: int = 0
+    reused: int = 0                    # 다른 프로젝트에서 가져온 영상. 호출하지 않았다
+    reused_saved_usd: float = 0.0      # 가져와서 아낀 추정 비용
     ok_seconds: float = 0.0            # 성공한 호출이 만든 영상 길이의 합
     elapsed_s: float = 0.0             # 성공한 호출의 처리 시간 합
 
@@ -111,6 +116,9 @@ def summarize(rows: list[LedgerRow]) -> Summary:
     for r in rows:
         if r.status == "dry_run":
             s.dry_runs += 1
+        elif r.reused_from:
+            s.reused += 1
+            s.reused_saved_usd = round(s.reused_saved_usd + r.original_cost_usd, 4)
         elif r.status == "ok":
             s.ok_calls += 1
             s.ok_usd += r.estimated_cost_usd

@@ -20,6 +20,7 @@ from ass import __version__
 from ass import console_model as model
 from ass.guards.cost_guard import UnknownPrice
 from ass.policy import load_policy
+from ass import settings
 from ass.settings import OUTPUT_DIR, ROOT
 from ass.workflow import load_workflow, render_markdown, render_stack
 
@@ -115,12 +116,23 @@ class ConsoleApp:
     # ---------------------------------------------------------------- 화면
     def _build_menu(self) -> None:
         bar = tk.Menu(self.root)
+        enter = tk.Menu(bar, tearoff=0)
+        enter.add_command(label="새 프로젝트…", command=lambda: self._forms().ProjectDialog(self).create())
+        enter.add_command(label="프로젝트 바꾸기…", command=lambda: self._forms().ProjectDialog(self).switch())
+        enter.add_separator()
+        enter.add_command(label="① 제품 등록…", command=lambda: self.open_form("ProductForm"))
+        enter.add_command(label="② 소재 입력…", command=lambda: self.open_form("BriefForm"))
+        enter.add_command(label="③ 장면 작성…", command=lambda: self.open_form("SceneForm"))
+        enter.add_separator()
+        enter.add_command(label="프로젝트 폴더 열기", command=lambda: self._open(settings.PROJECT_DIR))
+        bar.add_cascade(label="입력", menu=enter)
         work = tk.Menu(bar, tearoff=0)
         work.add_command(label="환경 점검 (ass doctor)", command=self.run_doctor)
         work.add_separator()
         work.add_command(label="제품 바이블 점검 (ass bible)", command=self.run_bible)
         work.add_command(label="레퍼런스 고르기… (ass sheet --select)", command=self.choose_references)
         work.add_separator()
+        work.add_command(label="견본에서 만든 영상 가져오기 (ass reuse)", command=self.run_reuse)
         work.add_command(label="조립에 쓸 영상 고르기… (ass assemble --pick)", command=self.choose_renders)
         work.add_separator()
         work.add_command(label="비용 장부와 오류 기록 만들기 (ass cost)", command=self.run_cost)
@@ -165,9 +177,9 @@ class ConsoleApp:
         for col in (1, 3, 5):
             box.columnconfigure(col, weight=1)
 
-        ttk.Label(box, text="저장소").grid(row=0, column=0, sticky="w", pady=3)
+        ttk.Label(box, text="프로젝트").grid(row=0, column=0, sticky="w", pady=3)
         path = ttk.Entry(box)
-        path.insert(0, str(ROOT))
+        path.insert(0, model.project_line())
         path.configure(state="readonly")
         path.grid(row=0, column=1, columnspan=5, sticky="ew", padx=6)
         ttk.Button(box, text="다시 읽기", command=self.reload).grid(row=0, column=6, padx=4)
@@ -347,7 +359,7 @@ class ConsoleApp:
         episode = self.episode.get()
         self.picks = {}                      # 편이 바뀌면 고른 영상도 버린다
         if not episode:
-            self.summary.set("examples 폴더에 장면 사양이 없습니다")
+            self.summary.set("아직 편이 없습니다. [입력] 메뉴에서 ① 제품 등록, ② 소재 입력, ③ 장면 작성 순으로 적습니다")
             return
         try:
             count = len(model.load_episode(episode))
@@ -548,6 +560,19 @@ class ConsoleApp:
         ttk.Button(bar, text="기록", command=apply).pack(side="right", padx=4)
         win.grab_set()
 
+    def run_reuse(self) -> None:
+        """견본에서 같은 프롬프트로 이미 만든 영상이 있으면 가져온다. 먼저 무엇을 가져올 수 있는지 보여 주고 묻는다."""
+        if self.process is not None or not self.episode.get():
+            return
+        if settings.PROJECT == settings.SAMPLE_NAME:
+            messagebox.showinfo("견본을 보고 있습니다", "가져오기는 내 프로젝트에서 합니다. 견본에서 만든 영상을 내 프로젝트로 가져옵니다.")
+            return
+        if messagebox.askokcancel(
+                "견본에서 만든 영상 가져오기",
+                f"견본에서 {self.episode.get()} 편과 같은 프롬프트로 이미 만든 영상이 있으면 이 프로젝트로 복사합니다.\n"
+                "프롬프트가 한 글자라도 다르면 가져오지 않습니다. 비용은 들지 않습니다.\n\n가져올까요?"):
+            self._begin([["reuse", "--from", settings.SAMPLE_NAME, "--episode", self.episode.get()]])
+
     def run_doctor(self) -> None:
         if self.process is not None:
             return
@@ -630,7 +655,8 @@ class ConsoleApp:
     def _start_next(self) -> None:
         argv = self.pending.pop(0)
         self._log(f"$ ass {' '.join(argv)}")
-        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1", PYTHONUNBUFFERED="1")
+        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1", PYTHONUNBUFFERED="1",
+                   ASS_PROJECT=settings.PROJECT)       # 콘솔이 보고 있는 프로젝트에서 실행한다
         flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         self.process = subprocess.Popen(
             [sys.executable, "-m", "ass", *argv], cwd=str(ROOT), env=env,
@@ -746,6 +772,37 @@ class ConsoleApp:
         widget.delete("1.0", "end")
         widget.insert("1.0", text)
         widget.configure(state="disabled")
+
+    # ---------------------------------------------------------------- 입력 화면과 프로젝트
+    def _forms(self):
+        from ass import console_forms
+
+        return console_forms
+
+    def open_form(self, name: str) -> None:
+        """입력 화면을 연다. 견본을 보고 있으면 내 프로젝트부터 만들게 한다."""
+        forms = self._forms()
+        if forms.need_project(self):
+            getattr(forms, name)(self).open()
+
+    def select_episode(self, episode: str) -> None:
+        if episode in model.list_episodes():
+            self.episode.set(episode)
+            self.on_episode()
+
+    def run_compile(self) -> None:
+        """장면을 저장한 뒤 바로 검사한다. 비용이 없다."""
+        if self.process is None and self.episode.get():
+            self._begin(model.build_runs("compile", self.episode.get()))
+
+    def restart(self, project: str) -> None:
+        """다른 프로젝트로 콘솔을 다시 연다. 작업 폴더는 시작할 때 한 번 정해지기 때문이다."""
+        if self.process is not None:
+            messagebox.showinfo("실행 중입니다", "실행이 끝난 뒤에 프로젝트를 바꿉니다.")
+            return
+        env = dict(os.environ, ASS_PROJECT=project)
+        subprocess.Popen([sys.executable, "-m", "ass", "console"], cwd=str(ROOT), env=env)
+        self.root.destroy()
 
     def close(self) -> None:
         if self.process is not None:

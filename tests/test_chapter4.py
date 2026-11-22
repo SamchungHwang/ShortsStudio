@@ -297,3 +297,41 @@ def test_cost_는_편을_골라도_장부_파일에는_전체를_쓴다(tmp_path
     out = capsys.readouterr().out
     assert "adhoc" not in out.split("장부:")[0] and "(전체 6건)" in out
     assert "adhoc" in (tmp_path / "ledger" / "cost_ledger.csv").read_text(encoding="utf-8-sig")
+
+
+# ---------------------------------------------------------------- 이미 만든 영상 다시 쓰기
+def test_같은_요청으로_만든_영상만_가져온다(tmp_path):
+    from ass.production import reuse
+
+    source = tmp_path / "sample_outputs"
+    folder = source / "renders" / "product_intro"
+    folder.mkdir(parents=True)
+    fmt = {"type": "video", "aspect_ratio": "9:16", "resolution": "720p", "duration": "15s"}
+
+    def make(run_id, sha, status="ok", video=True, **request):
+        RunRecord(run_id=run_id, purpose="p", model="m", request={"response_format": {**fmt, **request}},
+                  prompt_sha256=sha, estimated_cost_usd=1.05, status=status).save(folder / f"s1.{run_id}.api_run.json")
+        if video:
+            (folder / f"s1.{run_id}.mp4").write_bytes(run_id.encode())
+
+    make("20261121-100000", "aaa")
+    make("20261121-110000", "aaa")
+    make("20261121-120000", "aaa", status="error", video=False)
+    make("20261121-130000", "bbb")
+    make("20261121-140000", "aaa", resolution="1080p")
+    found = reuse.find_reusable(source, "aaa", "m", fmt)
+    assert found.run_id == "20261121-110000" and found.estimated_cost_usd == 1.05          # 가장 최근의 같은 요청
+    assert reuse.find_reusable(source, "ccc", "m", fmt) is None                            # 프롬프트가 다르면 없다
+    assert reuse.find_reusable(source, "aaa", "other", fmt) is None                        # 모델이 달라도 없다
+
+    target = tmp_path / "mine" / "renders" / "ep"
+    assert not reuse.already_here(target, "serum_s01", "aaa")
+    video = reuse.bring(found, target, "serum_s01", "ep", "sample")
+    assert video.read_bytes() == b"20261121-110000" and reuse.already_here(target, "serum_s01", "aaa")
+    doc = json.loads((target / "serum_s01.20261121-110000.api_run.json").read_text(encoding="utf-8"))
+    assert doc["estimated_cost_usd"] == 0.0 and doc["original_cost_usd"] == 1.05 and doc["reused_from"].startswith("sample: ")
+    assert assembler.find_render(target, "serum_s01") == (video, "20261121-110000")       # 조립이 그대로 쓴다
+    rows = ledger.collect(tmp_path / "mine")
+    s = ledger.summarize(rows)
+    assert (s.reused, s.reused_saved_usd, s.ok_calls, s.ok_usd) == (1, 1.05, 0, 0.0) and rows[0].calls == 0
+    assert reuse.find_reusable(tmp_path / "mine", "aaa", "m", fmt) is None                 # 가져온 것을 또 가져가지 않는다

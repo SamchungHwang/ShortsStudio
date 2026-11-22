@@ -46,6 +46,28 @@ ass render --scene 1          :: 15초 한 장면 생성 (720p 기준 추정 $1.
 새 창을 열 때마다 `conda activate ass` 를 먼저 한다. 프롬프트 앞이 `(ass)` 인지 확인한다.
 환경을 처음부터 다시 만들려면 `conda remove -n ass --all` 뒤에 위 순서를 반복한다.
 
+## 내 프로젝트와 입력
+
+책의 예제(`examples/moalab_skincare`)는 견본이다. 고치지 않는다. 내가 만들 Shorts 의 내용은 내 프로젝트에 적는다.
+
+```
+ass init my_first          projects/my_first/ 를 만들고 현재 프로젝트로 삼는다
+ass console                콘솔이 그 프로젝트로 열린다
+```
+
+콘솔의 [입력] 메뉴에서 차례로 적는다. 화면마다 [견본으로 채우기]가 있어 책의 모아랩 값을 넣고 따라 할 수 있다.
+
+| 순서 | 화면 | 적는 것 | 만들어지는 파일 (projects/<이름>/ 아래) |
+|---|---|---|---|
+| ① | 제품 등록 | 이름, 외형, 라벨 글자, 사실과 출처, 써도 되는 표현, 쓰지 않는 표현, 사진 | `product_bible.yaml`, `assets/products/<제품>/photos/` |
+| ② | 소재 입력 | 편 이름, 형식, 제목, 약속, 요점 3개, 원문(붙여 넣기 또는 파일) | `source_briefs/<편>.yaml`, `sources/<편>.txt` |
+| ③ | 장면 작성 | 장면마다 장소, 소리, 구간별 화면·카메라·내레이션·자막·근거 | `episodes/<편>/scene_0N_<역할>.yaml` |
+
+- 파일의 모양은 견본과 같다. 그래서 검사(`ass compile`), 생성, 조립은 그대로 쓴다. 산출물은 `projects/<이름>/outputs/` 에 쌓인다.
+- 현재 프로젝트는 `ass project` 로 보고 `ass project 이름` 으로 바꾼다. 견본은 `ass project sample`. 한 번만 다른 곳에서 실행하려면 `ass --project 이름 명령`.
+- 입력 화면은 값을 모아 `ass/authoring.py` 에 넘길 뿐이다. 6장의 `ass brief`, `ass script` 는 같은 파일을 LLM 초안으로 만든다.
+- 입력 화면은 흐름만 테스트했다. 실제 창의 모습은 아직 확인하지 못했다.
+
 ## 콘솔
 
 `ass console` 은 여섯 단계를 화면에서 실행하는 창이다. 편과 장면, 단계와 명령을 고르고 [실행]을 누른다.
@@ -77,6 +99,7 @@ ass render --scene 1          :: 15초 한 장면 생성 (720p 기준 추정 $1.
 | `ass compile` | 장면 사양 → 프롬프트·내레이션 대본·장면 설계표(storyboard.md). 형식·길이·가드 검사와 문법 주의 | 3·6 | 있음 |
 | `ass render` | 장면을 Omni로 생성하고 실행 기록을 남김. `--prompt` 로 장면 사양 없이도 생성. `--duration`, `--resolution`, `--aspect`, `--delivery`, `--name` | 2·4 | 있음 (실제 호출은 아직 안 해 봄) |
 | `ass assemble` | 장면 영상을 이어 붙여 초안 한 편(`draft_45s.mp4`)과 자막 파일(.srt), 조립 기록을 만듦. 비용 없음. `--pick 장면=RUN_ID`, `--dry-run`. 전환, 자막 입히기, 오디오는 10~12장에서 추가 | 4·12 | 있음 (합성 영상으로 확인. 실제 Omni 결과로는 아직 안 해 봄) |
+| `ass reuse` | 다른 프로젝트(기본: 견본)에서 같은 프롬프트로 이미 만든 영상을 가져옴. 프롬프트의 지문이 같을 때만. 비용 없음. `--from 이름`, `--dry-run` | 4 | 있음 |
 | `ass cost` | 실행 기록을 모아 비용 장부(`cost_ledger.csv`)와 오류 기록(`error_log.md`)을 만듦. `--billed 금액` 으로 실제 청구액을 적음 | 4 | 있음 |
 | `ass brief` | 아이디어, 블로그 글, 영상 대본을 소재 요약으로 정리 | 6 | 스키마만 있음 |
 | `ass script` | 소재 요약에서 대본과 장면 사양 초안을 만듦 | 6 | 없음 |
@@ -144,7 +167,7 @@ ass render --scene 1          :: 15초 한 장면 생성 (720p 기준 추정 $1.
 
 ## 지금 상태
 
-- 실행해 확인한 것: 단위 테스트 143개, `ass doctor`, `ass map`, `ass stack`, `ass compile`, `ass render --dry-run`,
+- 실행해 확인한 것: 단위 테스트 170개, `ass doctor`, `ass map`, `ass stack`, `ass compile`, `ass render --dry-run`,
   합성 영상 세 개로 `ass assemble` (FFmpeg 6.1.1, Linux), 합성 실행 기록으로 `ass cost`.
 - 실패한 호출이 청구되는지는 확인하지 못했다(실험 E04). 비용 장부는 성공한 호출과 실패한 시도를 따로 더한다.
 - `retry_policy.yaml` 의 횟수와 대기 시간, `assemble_recipe.yaml` 의 인코딩 값은 초기 가정값이다.

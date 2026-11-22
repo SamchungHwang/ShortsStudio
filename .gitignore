@@ -29,3 +29,8 @@ Thumbs.db
 
 # 콘솔 설정 (PC마다 다르다)
 .ass_console.json
+
+# 내 프로젝트의 생성 산출물(대용량). 내용 파일과 실행 기록은 커밋한다.
+projects/*/outputs/**/*.mp4
+projects/*/outputs/**/*.wav
+projects/*/outputs/**/*.png

@@ -1,0 +1,41 @@
+# product_bible.yaml — 이 프로젝트의 제품 바이블. 콘솔의 [입력] → 제품 등록이 고친다.
+version: '0.1'
+products:
+  moalab_aqua_serum:
+    brand: MOALAB
+    name_ko: 모아랩 수분 세럼
+    name_en: MOALAB Aqua Serum
+    appearance_en: a 30 ml frosted glass dropper bottle with a white cap and a pale blue label reading MOALAB
+    appearance_ko: 30ml 반투명 유리 스포이트 병. 흰 뚜껑, 하늘색 라벨에 MOALAB
+    label_text: MOALAB
+    is_own: true
+    facts:
+    - id: serum_volume
+      text_ko: 용량 30ml
+      source: 가상 제품 설정
+    - id: serum_texture
+      text_ko: 묽은 젤 제형
+      source: 가상 제품 설정
+    - id: serum_fragrance
+      text_ko: 무향
+      source: 가상 제품 설정
+    - id: serum_usage
+      text_ko: 세안 후 두세 방울을 손바닥에 덜어 얼굴에 가볍게 두드린다
+      source: 가상 제품 설정
+    say:
+    - text_ko: 묽은 젤 제형
+      evidence:
+      - serum_texture
+    - text_ko: 향이 없다
+      evidence:
+      - serum_fragrance
+    - text_ko: 세안 후 두세 방울
+      evidence:
+      - serum_usage
+    dont_say:
+    - text_ko: 24시간 촉촉
+      reason: 지속 시간을 잰 시험 자료가 없다
+    - text_ko: 민감성 피부에 안전
+      reason: 피부 자극 시험 자료가 없다
+    - text_ko: 흡수가 빠르다
+      reason: 흡수를 잰 자료가 없다. 제형은 말할 수 있어도 흡수는 말할 수 없다

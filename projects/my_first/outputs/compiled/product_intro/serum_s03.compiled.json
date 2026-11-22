@@ -1,0 +1,39 @@
+{
+  "scene_id": "serum_s03",
+  "duration_s": 15,
+  "aspect_ratio": "9:16",
+  "prompt": "Vertical 9:16 video, 15 seconds, one continuous scene. Clean realistic product video, soft natural daylight, shallow depth of field, calm and minimal.\nSetting: The same bright minimal bathroom counter by a window, white tiles, a folded towel.\nProducts (keep shape, color and label exactly as described):\n- MOALAB Aqua Serum: a 30 ml frosted glass dropper bottle with a white cap and a pale blue label reading MOALAB\nAction:\n[0-5s] A hand holds the dropper over an open palm and releases three clear drops of serum. Camera: top-down close-up on the palm.\n[5-10s] Both palms press together to spread the serum, then gently pat the back of one hand. Camera: close-up on the hands, soft focus background.\n[10-15s] Final shot of the MOALAB Aqua Serum bottle standing on the center of the counter in warm afternoon light. Camera: slow pull-back, hold on the final frame.\nAudio: Quiet bathroom room tone, soft liquid drops, gentle hand pats.\nConstraints: No human faces. No added text overlays, captions or subtitles (the product label itself stays). No background music. No speech, narration or voice-over.",
+  "prompt_sha256": "231e6af0bfe39c180997a1b518e777ce983dafe4712a7caf7b6a1d3e00b4f522",
+  "narration_mode": "tts",
+  "narration": [
+    {
+      "start_s": 0,
+      "end_s": 5,
+      "text": "세안 후 두세 방울을 손바닥에 덜고",
+      "caption": "세안 후 두세 방울",
+      "evidence": [
+        "serum_usage"
+      ]
+    },
+    {
+      "start_s": 5,
+      "end_s": 10,
+      "text": "얼굴에 가볍게 두드린다.",
+      "caption": "가볍게 두드리기",
+      "evidence": [
+        "serum_usage"
+      ]
+    },
+    {
+      "start_s": 10,
+      "end_s": 15,
+      "text": "오늘 저녁 세안 뒤에 써 보자.",
+      "caption": "오늘 저녁부터",
+      "evidence": []
+    }
+  ],
+  "needs_human_approval": false,
+  "compiler_version": "0.2.0",
+  "lexicon_version": "2026-11-17-draft",
+  "product_bible_version": "0.1"
+}

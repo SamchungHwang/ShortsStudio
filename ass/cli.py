@@ -31,7 +31,7 @@ from ass import __version__
 from ass.guards.cost_guard import BudgetGuard, UnknownPrice, estimate_image_cost, estimate_video_cost
 from ass.policy import load_policy
 from ass import ledger
-from ass.production import assembler, bible_lint, image_client, omni_client, reference_sheet, retry
+from ass.production import assembler, bible_lint, image_client, omni_client, reference_sheet, retry, reuse
 from ass.production.claims_guard import ClaimsGuard
 from ass.production.grammar import check_grammar, storyboard_markdown
 from ass.production.product_bible import load_product_bible
@@ -281,6 +281,56 @@ def cmd_render(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_reuse(args: argparse.Namespace) -> int:
+    """다른 프로젝트(기본: 견본)에서 같은 프롬프트로 이미 만든 영상을 가져온다. 비용 없음."""
+    from ass import settings
+
+    source = args.source
+    if source == settings.PROJECT:
+        print(f"[막힘] 지금 프로젝트({source})에서 가져올 수는 없다. --from 에 다른 프로젝트나 sample 을 적는다.")
+        return 4
+    if source != settings.SAMPLE_NAME and source not in settings.list_projects():
+        print(f"[막힘] 없는 프로젝트: {source}")
+        return 4
+    _, source_outputs = settings.project_paths(source)
+    spec = load_policy("production_spec")
+    models = load_policy("models")
+    bible = load_product_bible(EXAMPLE_DIR / "product_bible.yaml")
+    scenes = _load_episode(args.episode)
+    resolution = spec.data["shot"]["draft_resolution"]
+    model_id = models.data["video"]["id"]
+    target_dir = OUTPUT_DIR / "renders" / args.episode
+    brought, saved = 0, 0.0
+    print(f"{source} 에서 같은 프롬프트로 만든 영상을 찾는다 ({source_outputs / 'renders'})")
+    for n, scene in enumerate(scenes, 1):
+        compiled = compile_scene(scene, bible, spec.data)
+        request = omni_client.build_request(compiled.prompt, model=model_id, duration_s=scene.duration_s,
+                                            aspect_ratio=scene.aspect_ratio, resolution=resolution)
+        cost = estimate_video_cost(scene.duration_s, resolution, models.data)
+        label = f"장면 {n} {scene.scene_id}"
+        if reuse.already_here(target_dir, scene.scene_id, compiled.prompt_sha256):
+            print(f"  {label}: 이 프로젝트에 같은 프롬프트의 영상이 이미 있다. 가져오지 않는다")
+            continue
+        found = reuse.find_reusable(source_outputs, compiled.prompt_sha256, model_id, request["response_format"])
+        if found is None:
+            print(f"  {label}: 같은 프롬프트로 만든 영상이 없다. 생성해야 한다 (추정 ${cost:.2f})")
+            continue
+        if args.dry_run:
+            print(f"  {label}: 가져올 수 있다 — 실행 {found.run_id} (다시 만들면 추정 ${cost:.2f})")
+        else:
+            video = reuse.bring(found, target_dir, scene.scene_id, args.episode, source)
+            print(f"  {label}: 가져왔다 — {video}")
+        brought += 1
+        saved += cost
+    verb = "가져올 수 있는" if args.dry_run else "가져온"
+    print(f"{verb} 영상 {brought}개 · 다시 만들지 않아 아끼는 추정 비용 ${saved:.2f}")
+    if args.dry_run:
+        print("[dry-run] 복사하지 않았다.")
+    elif brought:
+        print("가져온 영상의 실행 기록에는 어디서 왔는지가 적혀 있고 추정 비용은 0 이다. 이어서 조립하면 된다.")
+    return 0
+
+
 def cmd_assemble(args: argparse.Namespace) -> int:
     """장면 영상을 차례로 이어 붙여 초안 한 편을 만든다. API를 호출하지 않는다."""
     spec = load_policy("production_spec")
@@ -358,12 +408,14 @@ def cmd_cost(args: argparse.Namespace) -> int:
         length = f"{r.duration_s:g}초" if r.duration_s else "-"
         elapsed = f"{r.elapsed_s:.0f}초" if r.elapsed_s else "-"
         print(f"{r.run_id:<17}{r.episode:<15}{(r.scene_id or '-'):<20}{length:>5} {r.resolution:<6}"
-              f"{r.status:<8}{r.calls:>3}{elapsed:>8}{'$' + format(r.charged_estimate_usd, '.2f'):>8}")
+              f"{('reused' if r.reused_from else r.status):<8}{r.calls:>3}{elapsed:>8}{'$' + format(r.charged_estimate_usd, '.2f'):>8}")
     s = ledger.summarize(rows)
     scope = args.episode or "전체"
     print(f"\n[{scope}] 성공 {s.ok_calls}건 추정 ${s.ok_usd:.2f} (영상 {s.ok_seconds:g}초, 처리 시간 {s.elapsed_s:.0f}초)")
     print(f"[{scope}] 실패한 시도 {s.failed_calls}건 추정 ${s.failed_usd:.2f} — 청구 여부는 확인하지 못했다. 결제 화면에서 본다")
     print(f"[{scope}] 요청만 확인 {s.dry_runs}건 $0.00")
+    if s.reused:
+        print(f"[{scope}] 가져온 영상 {s.reused}건 $0.00 (다시 만들지 않아 아낀 추정 ${s.reused_saved_usd:.2f})")
     print(f"[{scope}] 추정 합계 ${s.ok_usd:.2f} ~ ${s.worst_case_usd:.2f} (실패한 시도가 모두 청구될 때)")
     if s.ok_seconds:
         print(f"[{scope}] 영상 1초를 만드는 데 걸린 시간 {s.elapsed_s / s.ok_seconds:.1f}초")
@@ -573,7 +625,17 @@ def build_parser() -> argparse.ArgumentParser:
         epilog="다른 명령은 해당 장에서 추가한다. 목록과 상태는 README 를 본다.",
     )
     parser.add_argument("--version", action="version", version=f"ass {__version__}")
+    parser.add_argument("--project", default=None, metavar="이름",
+                        help="이번 한 번만 이 프로젝트에서 실행한다. 견본은 sample. 기본은 현재 프로젝트")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    i = sub.add_parser("init", help="내 프로젝트 폴더를 만든다")
+    i.add_argument("name", help="프로젝트 이름. 영문 소문자, 숫자, 밑줄")
+    i.set_defaults(func=cmd_init)
+
+    pj = sub.add_parser("project", help="현재 프로젝트를 보여 주거나 바꾼다")
+    pj.add_argument("name", nargs="?", default=None, help="바꿀 프로젝트 이름. 견본은 sample")
+    pj.set_defaults(func=cmd_project)
 
     d = sub.add_parser("doctor", help="환경 점검")
     d.add_argument("--write", action="store_true", help="docs/setup.md 로 저장")
@@ -630,6 +692,12 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--note", default=None, help="--select 와 함께. 고른 이유")
     s.set_defaults(func=cmd_sheet)
 
+    u = sub.add_parser("reuse", help="다른 프로젝트에서 같은 프롬프트로 만든 영상을 가져온다 (비용 없음)")
+    u.add_argument("--from", dest="source", default="sample", help="가져올 곳. 프로젝트 이름. 기본은 견본(sample)")
+    u.add_argument("--episode", default="product_intro")
+    u.add_argument("--dry-run", action="store_true", help="복사하지 않고 무엇을 가져올 수 있는지만 본다")
+    u.set_defaults(func=cmd_reuse)
+
     k = sub.add_parser("cost", help="실행 기록을 모아 비용 장부와 오류 기록을 만든다")
     k.add_argument("--episode", default=None, help="한 편만 볼 때. 기본은 전체")
     k.add_argument("--billed", type=float, default=None, help="결제 화면에서 본 실제 청구액(USD)을 적는다")
@@ -647,9 +715,82 @@ def available_commands() -> set[str]:
     return set()
 
 
+def cmd_init(args: argparse.Namespace) -> int:
+    """내 프로젝트 폴더를 만들고 현재 프로젝트로 삼는다."""
+    from ass import authoring, settings
+
+    try:
+        folder = authoring.init_project(args.name)
+    except authoring.InputError as exc:
+        print(f"[막힘] {exc}")
+        return 4
+    settings.write_prefs({"project": args.name})
+    print(f"프로젝트를 만들었다: {folder}")
+    print("  product_bible.yaml   제품        콘솔 [입력] → 제품 등록")
+    print("  source_briefs/       소재 요약    콘솔 [입력] → 소재 입력")
+    print("  episodes/            장면        콘솔 [입력] → 장면 작성")
+    print("  assets/products/     사진과 고른 레퍼런스")
+    print("  outputs/             이 프로젝트의 산출물")
+    print(f"현재 프로젝트: {args.name}. 이제부터 명령과 콘솔이 이 폴더를 쓴다. 견본으로 돌아가려면 ass project sample")
+    return 0
+
+
+def cmd_project(args: argparse.Namespace) -> int:
+    """현재 프로젝트를 보여 주거나 바꾼다."""
+    from ass import settings
+
+    names = settings.list_projects()
+    if args.name:
+        if args.name != settings.SAMPLE_NAME and args.name not in names:
+            print(f"[막힘] 없는 프로젝트: {args.name}. 있는 것: {', '.join(names) or '없음'}. 새로 만들려면 ass init {args.name}")
+            return 4
+        settings.write_prefs({"project": args.name})
+        folder, outputs = settings.project_paths(args.name)
+        print(f"현재 프로젝트: {args.name}\n  작업 폴더: {folder}\n  산출물: {outputs}")
+        return 0
+    current = settings.resolve_project()
+    for name in [settings.SAMPLE_NAME] + names:
+        folder, _ = settings.project_paths(name)
+        note = " (책의 견본. 고치지 않는다)" if name == settings.SAMPLE_NAME else ""
+        print(f"{'*' if name == current else ' '} {name:<20}{folder}{note}")
+    print("바꾸기: ass project 이름 · 새로 만들기: ass init 이름 · 한 번만 다른 곳에서: ass --project 이름 명령")
+    return 0
+
+
+def _run_in_project(name: str, argv: list[str]) -> int:
+    """`--project 이름` 은 그 프로젝트를 가리키는 환경 변수를 주고 같은 명령을 다시 실행한다.
+
+    작업 폴더는 프로그램이 시작할 때 한 번 정해지므로, 도중에 바꾸지 않고 새로 시작한다.
+    """
+    import subprocess
+
+    from ass import settings
+
+    if name != settings.SAMPLE_NAME and name not in settings.list_projects():
+        print(f"[막힘] 없는 프로젝트: {name}. 새로 만들려면 ass init {name}")
+        return 4
+    rest, skip = [], False
+    for arg in argv:
+        if skip:
+            skip = False
+        elif arg == "--project":
+            skip = True
+        elif not arg.startswith("--project="):
+            rest.append(arg)
+    env = dict(os.environ, ASS_PROJECT=name)
+    return subprocess.call([sys.executable, "-m", "ass", *rest], env=env)
+
+
 def main(argv: list[str] | None = None) -> int:
     _setup()
+    argv = sys.argv[1:] if argv is None else list(argv)
     args = build_parser().parse_args(argv)
+    from ass import settings
+
+    if getattr(args, "project", None) and args.project != settings.PROJECT:
+        return _run_in_project(args.project, argv)
+    if settings.PROJECT != settings.SAMPLE_NAME and args.command not in ("init", "project", "console", "doctor"):
+        print(f"[프로젝트 {settings.PROJECT}] {settings.PROJECT_DIR}", flush=True)
     try:
         return int(args.func(args))
     except CompileError as exc:      # 가드가 막은 것은 오류가 아니라 정상 동작이다

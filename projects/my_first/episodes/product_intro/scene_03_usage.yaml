@@ -1,0 +1,37 @@
+# 장면 3 — usage
+scene_id: serum_s03
+episode_id: product_intro
+format: product_intro
+role: usage
+duration_s: 15
+aspect_ratio: '9:16'
+products:
+- moalab_aqua_serum
+setting_en: The same bright minimal bathroom counter by a window, white tiles, a folded towel.
+beats:
+- start_s: 0
+  end_s: 5
+  visual_ko: 스포이트로 손바닥에 세럼을 두세 방울 떨어뜨린다.
+  visual_en: A hand holds the dropper over an open palm and releases three clear drops of serum
+  camera_en: top-down close-up on the palm
+  narration_ko: 세안 후 두세 방울을 손바닥에 덜고
+  caption_ko: 세안 후 두세 방울
+  evidence:
+  - serum_usage
+- start_s: 5
+  end_s: 10
+  visual_ko: 두 손바닥을 맞대 세럼을 펴고, 손등에 가볍게 두드려 보인다.
+  visual_en: Both palms press together to spread the serum, then gently pat the back of one hand
+  camera_en: close-up on the hands, soft focus background
+  narration_ko: 얼굴에 가볍게 두드린다.
+  caption_ko: 가볍게 두드리기
+  evidence:
+  - serum_usage
+- start_s: 10
+  end_s: 15
+  visual_ko: 세럼 병이 선반 가운데 놓인 마지막 화면. 오후 햇빛이 병을 비춘다.
+  visual_en: Final shot of the MOALAB Aqua Serum bottle standing on the center of the counter in warm afternoon light
+  camera_en: slow pull-back, hold on the final frame
+  narration_ko: 오늘 저녁 세안 뒤에 써 보자.
+  caption_ko: 오늘 저녁부터
+audio_en: Quiet bathroom room tone, soft liquid drops, gentle hand pats.

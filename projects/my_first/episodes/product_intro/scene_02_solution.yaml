@@ -1,0 +1,38 @@
+# 장면 2 — solution
+scene_id: serum_s02
+episode_id: product_intro
+format: product_intro
+role: solution
+duration_s: 15
+aspect_ratio: '9:16'
+products:
+- moalab_aqua_serum
+setting_en: The same bright minimal bathroom counter by a window, white tiles, a folded towel.
+beats:
+- start_s: 0
+  end_s: 4
+  visual_ko: 빈자리에 수분 세럼 병이 놓인다. 라벨이 정면을 향한다.
+  visual_en: A hand places the MOALAB Aqua Serum bottle on the center of the counter with the label facing the camera
+  camera_en: static product shot, then slow push-in
+  narration_ko: 모아랩 수분 세럼.
+  caption_ko: 모아랩 수분 세럼
+- start_s: 4
+  end_s: 10
+  visual_ko: 스포이트를 들어 올리자 묽은 젤 한 방울이 천천히 떨어진다.
+  visual_en: The dropper is lifted out and one clear, thin gel drop slowly falls back into the bottle
+  camera_en: macro shot on the dropper tip, shallow depth of field
+  narration_ko: 묽은 젤 제형이고 향이 없다.
+  caption_ko: 묽은 젤, 무향
+  evidence:
+  - serum_texture
+  - serum_fragrance
+- start_s: 10
+  end_s: 15
+  visual_ko: 병을 천천히 한 바퀴 돌려 전체 모습을 보여 준다.
+  visual_en: The bottle slowly rotates one full turn on the counter, showing its frosted glass and white cap
+  camera_en: static, eye-level
+  narration_ko: 용량은 30밀리리터.
+  caption_ko: 30ml
+  evidence:
+  - serum_volume
+audio_en: Quiet bathroom room tone, a soft glass clink as the bottle is set down, one tiny liquid drop.

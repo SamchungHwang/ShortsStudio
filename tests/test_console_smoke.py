@@ -39,7 +39,9 @@ def console(monkeypatch, tmp_path):
     font.nametofont = widget
     tk.font, tk.TclError, ttk.Style = font, RuntimeError, widget
     monkeypatch.setitem(sys.modules, "tkinter.font", font)
-    tk.ttk, tk.messagebox, tk.simpledialog = ttk, messagebox, simpledialog
+    tk.ttk, tk.messagebox, tk.simpledialog, tk.filedialog = ttk, messagebox, simpledialog, MagicMock()
+    monkeypatch.setitem(sys.modules, "tkinter.filedialog", tk.filedialog)
+    monkeypatch.delitem(sys.modules, "ass.console_forms", raising=False)
     monkeypatch.setitem(sys.modules, "tkinter.simpledialog", simpledialog)
     monkeypatch.setitem(sys.modules, "tkinter", tk)
     monkeypatch.setitem(sys.modules, "tkinter.ttk", ttk)
@@ -275,3 +277,119 @@ def test_레퍼런스_단계는_sheet_를_실행하고_비용을_먼저_묻는�
     assert started[-1] == [["bible"]]
     app.choose_references()                                   # 후보가 없으면 창을 열지 않는다
     assert "후보를 먼저 만드세요" in messagebox.showinfo.call_args[0][1]
+
+
+# ---------------------------------------------------------------- 입력 화면
+class FakeText:
+    """여러 줄 칸의 가짜. 값을 기억한다."""
+
+    def __init__(self, parent, height, width=80):
+        self.widget, self.value = MagicMock(), ""
+
+    def get(self):
+        return self.value
+
+    def set(self, value):
+        self.value = value or ""
+
+
+@pytest.fixture
+def forms(console, monkeypatch, tmp_path):
+    """가짜 화면 위에서 입력 화면을 연다. 내 프로젝트는 임시 폴더에 만든다."""
+    from ass import authoring, console_forms, settings
+
+    project = authoring.init_project("my_first", tmp_path / "projects")
+    monkeypatch.setattr(settings, "PROJECT", "my_first")
+    monkeypatch.setattr(settings, "PROJECT_DIR", project)
+    monkeypatch.setattr(console_forms, "TextField", FakeText)
+    monkeypatch.setattr(console_forms, "messagebox", MagicMock())
+    return console_forms, MagicMock(), project
+
+
+def test_견본을_보고_있으면_입력_화면_대신_프로젝트부터_만들게_한다(console, monkeypatch):
+    module, _ = console
+    from ass import console_forms, settings
+
+    box = MagicMock()
+    box.askokcancel.return_value = False
+    monkeypatch.setattr(console_forms, "messagebox", box)
+    assert settings.PROJECT == "sample" and console_forms.need_project(MagicMock()) is False
+    assert "견본은 고치지 않습니다" in box.askokcancel.call_args[0][1]
+    app = _app(module)
+    app.open_form("ProductForm")                              # 창을 열지 않고 돌아온다
+    assert "견본 (책의 예제)" in __import__("ass.console_model", fromlist=["x"]).project_line()
+
+
+def test_제품_등록은_견본으로_채우고_저장하면_파일이_된다(forms):
+    console_forms, app, project = forms
+    from ass import authoring
+
+    form = console_forms.ProductForm(app)
+    form.open()
+    form.fill_sample()
+    assert form.product_id.get() == "moalab_aqua_serum" and form.vars["brand"].get() == "MOALAB"
+    assert "serum_volume | 용량 30ml | 가상 제품 설정" in form.texts["facts"].get()
+    assert form.save() is True
+    app.reload.assert_called_once()
+    assert authoring.product_ids(project) == ["moalab_aqua_serum"]
+    form.texts["facts"].set("용량 30ml")                         # 칸을 잘못 적으면 저장하지 않고 이유를 보인다
+    assert form.save() is False
+    assert "세로줄" in console_forms.messagebox.showwarning.call_args[0][1]
+    form.texts["facts"].set("")
+    form.product_id.set("moalab_aqua_serum")
+    form.load()                                               # 저장된 것을 다시 불러온다
+    assert "serum_usage" in form.texts["facts"].get()
+    assert form.save(check=True) is True
+    app.run_bible.assert_called_once()
+
+
+def test_소재_입력은_소유_확인_표시가_있어야_저장한다(forms):
+    console_forms, app, project = forms
+    from ass import authoring
+
+    authoring.save_product(project, "moalab_aqua_serum", authoring.sample_product())
+    form = console_forms.BriefForm(app)
+    form.open()
+    form.fill_sample()
+    assert form.title.get().startswith("오후에 당기는 피부") and form.points[1][1].get() == "serum_texture, serum_fragrance"
+    assert form.owner.get() is False and form.save() is False           # 견본이 대신 표시하지 않는다
+    assert "네모 칸을 눌러 표시한 뒤 다시 저장" in console_forms.messagebox.showwarning.call_args[0][1]
+    assert "직접 눌러 표시하세요" in form.owner_hint.get()
+    form.owner.set(True)
+    form.source.set("내 블로그 글")
+    assert form.save() is True
+    assert (project / "source_briefs" / "product_intro.yaml").is_file()
+    assert (project / "sources" / "product_intro.txt").read_text(encoding="utf-8") == "내 블로그 글\n"
+
+
+def test_장면_작성은_세_장면을_차례로_저장하고_검사로_넘어간다(forms):
+    console_forms, app, project = forms
+    from ass import authoring
+
+    authoring.save_product(project, "moalab_aqua_serum", authoring.sample_product())
+    authoring.save_brief(project, "product_intro", authoring.sample_brief("product_intro"))
+    form = console_forms.SceneForm(app)
+    form.open()                                               # 저장된 장면이 없으면 빈 장면을 보인다
+    assert form.scene_id.get() == "product_intro_s01" and "문제 (problem)" in form.role.get()
+    assert "serum_volume(용량 30ml)" in form.facts.get()
+    assert form.save() is False                               # 빈 채로는 저장하지 않는다
+    form.fill_sample()
+    console_forms.messagebox.askyesno.return_value = True     # 장면 하나만 적고 검사를 누르면 다음 장면으로 데려간다
+    assert form.save(check=True) is True and form.number.get() == "2"
+    assert "장면 2, 3이(가) 아직 없습니다" in console_forms.messagebox.askyesno.call_args[0][1]
+    assert "장면 1 ✔  장면 2 —  장면 3 —" in form.progress.get()
+    app.run_compile.assert_not_called()
+    form.number.set("1")
+    form.load()
+    for number in ("1", "2"):
+        form.fill_sample()
+        assert form.save(advance=True) is True and form.number.get() == str(int(number) + 1)
+    assert form.is_last()                                     # 마지막 장면에서는 [저장하고 다음 장면]을 누를 수 없다
+    form.next_button.configure.assert_called_with(state="disabled")
+    form.fill_sample()
+    assert form.beats[0]["caption_ko"].get() == "세안 후 두세 방울"
+    assert form.save(check=True) is True
+    app.run_compile.assert_called_once()
+    app.select_episode.assert_called_with("product_intro")
+    assert "세 장면이 모두 저장됐습니다" in form.progress.get()
+    assert len(list((project / "episodes" / "product_intro").glob("scene_*.yaml"))) == 3

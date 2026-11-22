@@ -16,6 +16,7 @@ from ass.policy import load_policy
 from ass.production.product_bible import load_product_bible
 from ass.production.scene_compiler import CompileError, compile_scene
 from ass.production.scene_spec import SceneSpec, check_episode, load_scene
+from ass import settings
 from ass.settings import CONFIG_DIR, EXAMPLE_DIR, OUTPUT_DIR, ROOT
 from ass.workflow import Workflow
 
@@ -484,7 +485,7 @@ def finish_mark(code: int, stopped: bool = False) -> str:
 # ---------------------------------------------------------------- 글자 크기
 DEFAULT_FONT_SIZE = 12
 MIN_FONT_SIZE, MAX_FONT_SIZE = 9, 18
-PREFS_PATH = ROOT / ".ass_console.json"       # 이 PC 의 콘솔 설정. 저장소에 올리지 않는다
+PREFS_PATH = settings.PREFS_PATH              # 이 PC 의 설정. 저장소에 올리지 않는다
 
 
 def clamp_font_size(size: int) -> int:
@@ -498,18 +499,19 @@ def font_sizes(base: int) -> dict[str, int]:
 
 
 def load_font_size(path: Path = PREFS_PATH) -> int:
-    import json
-
     try:
-        return clamp_font_size(json.loads(path.read_text(encoding="utf-8"))["font_size"])
-    except (OSError, ValueError, KeyError, TypeError):
+        return clamp_font_size(settings.read_prefs(path)["font_size"])
+    except (KeyError, TypeError, ValueError):
         return DEFAULT_FONT_SIZE
 
 
 def save_font_size(size: int, path: Path = PREFS_PATH) -> None:
-    import json
+    settings.write_prefs({"font_size": clamp_font_size(size)}, path)     # 현재 프로젝트 같은 다른 설정은 그대로 둔다
 
-    try:
-        path.write_text(json.dumps({"font_size": clamp_font_size(size)}) + "\n", encoding="utf-8")
-    except OSError:
-        pass                    # 저장하지 못해도 콘솔은 그대로 쓴다
+
+# ---------------------------------------------------------------- 프로젝트
+def project_line() -> str:
+    """콘솔 맨 위에 보이는 한 줄. 지금 어느 폴더에서 일하는지."""
+    if settings.PROJECT == settings.SAMPLE_NAME:
+        return f"견본 (책의 예제) · {settings.PROJECT_DIR} · 내 것을 만들려면 [입력] → 새 프로젝트"
+    return f"{settings.PROJECT} · {settings.PROJECT_DIR}"
