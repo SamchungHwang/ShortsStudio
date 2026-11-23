@@ -83,7 +83,7 @@ class FakeProcess:
 def test_console_opens_on_script_stage_with_compile_ready(console):
     module, _ = console
     app = _app(module)
-    assert app.status.get().startswith("명령 12개 중 4개 있음")
+    assert app.status.get().startswith("명령 12개 중 6개 있음")
     assert app.stage.get() == "2. 대본" and app.command.get() == "compile"
     assert app.episode.get() == "product_intro"
     assert "제품 설명 · 장면 3개 · 45초" in app.summary.get()
@@ -393,3 +393,79 @@ def test_장면_작성은_세_장면을_차례로_저장하고_검사로_넘어�
     app.select_episode.assert_called_with("product_intro")
     assert "세 장면이 모두 저장됐습니다" in form.progress.get()
     assert len(list((project / "episodes" / "product_intro").glob("scene_*.yaml"))) == 3
+
+
+def test_일부_방향만_다시_만들기_창은_고른_방향으로_sheet_를_실행한다(console, monkeypatch):
+    from unittest.mock import MagicMock
+
+    module, messagebox = console
+    app = _app(module)
+    buttons, checks = {}, {}
+
+    def button(*args, **kwargs):
+        buttons[kwargs.get("text")] = kwargs.get("command")
+        return MagicMock()
+
+    def check(*args, **kwargs):
+        checks[kwargs.get("text")] = kwargs.get("variable")
+        return MagicMock()
+
+    monkeypatch.setattr(module.ttk, "Button", button)
+    monkeypatch.setattr(module.ttk, "Checkbutton", check)
+    started = []
+    monkeypatch.setattr(app, "_begin", started.append)
+    app.remake_views()
+    buttons["실행"]()                                           # 아무 방향도 고르지 않았다
+    assert started == [] and "고른 방향이 없습니다" in messagebox.showinfo.call_args[0][0]
+    label = next(v for k, v in checks.items() if k.startswith("라벨 가까이"))
+    label.set(True)
+    buttons["실행"]()                                           # 요청만 확인: 묻지 않고 계획을 본다. 사진이 없어 정면이 붙는다
+    assert started == [[["sheet", "--product", "moalab_aqua_serum", "--views", "front,label", "--dry-run"]]]
+    messagebox.askokcancel.assert_not_called()
+    app.dry_run.set(False)
+    messagebox.askokcancel.return_value = False
+    buttons["실행"]()                                           # 실제 생성은 비용을 먼저 묻는다
+    asked = messagebox.askokcancel.call_args[0][1]
+    assert "2장(front, label)" in asked and "$0.07" in asked and "기준 방향(front)" in asked and len(started) == 1
+
+
+def test_소재_입력의_초안_만들기와_불러오기(forms):
+    console_forms, app, project = forms
+    from ass import authoring
+
+    authoring.save_product(project, "moalab_aqua_serum", authoring.sample_product())
+    form = console_forms.BriefForm(app)
+    form.open()
+    form.fill_sample()
+    assert "오후 세 시쯤 볼이 당긴다" in form.source.get()             # 견본의 블로그 글이 원문 칸에 들어온다
+    app.process, app.dry_run.get.return_value = None, True
+    form.make_draft()                                          # 소유 확인 표시가 없으면 보내지 않는다
+    app._begin.assert_not_called()
+    assert "표시해야 초안을 만든다" in console_forms.messagebox.showwarning.call_args[0][1]
+    form.owner.set(True)
+    form.make_draft()
+    assert app._begin.call_args[0][0][0][:3] == ["brief", "--episode", "product_intro"]
+    assert app._begin.call_args[0][0][0][-2:] == ["--owner-confirmed", "--dry-run"]
+    assert (project / "sources" / "product_intro.txt").is_file()
+    form.load_draft()                                          # 초안이 없으면 알려 준다
+    assert console_forms.messagebox.showinfo.call_args[0][0] == "초안이 없습니다"
+    draft = project / "drafts" / "product_intro"
+    draft.mkdir(parents=True)
+    (draft / "brief.yaml").write_text(
+        "title_ko: 초안 제목\npromise_ko: 초안 약속\nformat: product_intro\nsource_type: own_blog\nowner_confirmed: false\n"
+        "products: [moalab_aqua_serum]\nkey_points:\n  - {text_ko: 요점 하나, evidence: [serum_usage]}\n"
+        "draft: {check: ['요점 1: 인용이 원문에 없다']}\n", encoding="utf-8")
+    form.load_draft()
+    assert form.title.get() == "초안 제목" and form.points[0][1].get() == "serum_usage"
+    assert form.owner.get() is True                            # 초안이 소유 확인 표시를 끄거나 켜지 않는다
+    assert "확인할 것 1개" in console_forms.messagebox.showinfo.call_args[0][1]
+    (draft / "scene_01.yaml").write_text(
+        "scene_id: product_intro_s01\nepisode_id: product_intro\nformat: product_intro\nrole: problem\nduration_s: 15\n"
+        "products: [moalab_aqua_serum]\nsetting_en: A desk\nbeats:\n  - {start_s: 0, end_s: 15, visual_ko: 초안 화면, visual_en: A desk}\n",
+        encoding="utf-8")
+    (draft / "script_check.yaml").write_text("check: ['장면 1 구간 1: x', '장면 2 구간 1: y', '문법: z']\n", encoding="utf-8")
+    scene = console_forms.SceneForm(app)
+    scene.open()
+    scene.load_draft()
+    assert scene.beats[0]["visual_ko"].get() == "초안 화면" and scene.setting.get() == "A desk"
+    assert "확인할 것 2개" in console_forms.messagebox.showinfo.call_args[0][1]

@@ -1,0 +1,64 @@
+{
+  "product_id": "moalab_aqua_serum",
+  "manifest_version": 1,
+  "selected_at": "2026-11-23T15:29:06",
+  "selected_by": "황삼청",
+  "note": "적절함",
+  "bible_version": "0.1",
+  "appearance_en": "a 30 ml frosted glass dropper bottle with a white cap and a pale blue label reading MOALAB",
+  "appearance_sha256": "6b2a1c91f0d22aa763e0702202fdec3dec4103b66286f94be17debc0b9accb03",
+  "source_mode": "text",
+  "images": [
+    {
+      "view": "front",
+      "file": "reference/front.jpg",
+      "sha256": "2888f8d2560806ae7b3b3e5d5180e721bb20ba8c00e62965ef1025c986e282f6",
+      "bytes": 434570,
+      "from_version": "v002",
+      "run_id": "20261123-151648",
+      "model": "gemini-nano-banana-2.1",
+      "prompt_sha256": "7f699c4b1c5bd05c5325458ce95a609172a67ec82c489134d21f0ae9422cedfb"
+    },
+    {
+      "view": "three_quarter",
+      "file": "reference/three_quarter.jpg",
+      "sha256": "6cd4dfd1b57e1a6c428b7c5b93c8bb5407f18afb8d0bdbed9dec0ca331fc0ae5",
+      "bytes": 417261,
+      "from_version": "v002",
+      "run_id": "20261123-151703",
+      "model": "gemini-nano-banana-2.1",
+      "prompt_sha256": "913bdc4232d805c26914cbd6a123af22a60c15c7c080dd7a73f2747a67e86da8"
+    },
+    {
+      "view": "side",
+      "file": "reference/side.jpg",
+      "sha256": "6d07f0124173a5fa5165cddd2273237619704d9c390cecf948667d429441c0a1",
+      "bytes": 409422,
+      "from_version": "v002",
+      "run_id": "20261123-151719",
+      "model": "gemini-nano-banana-2.1",
+      "prompt_sha256": "2b6331e9e001cdeec0ea9c463e6d5e05933471dfbbd35553fadca0917469ed57"
+    },
+    {
+      "view": "label",
+      "file": "reference/label.jpg",
+      "sha256": "30db27db21ee8db80b840495ac8b1d83740e227b87b6b73b5701ecabd2b46087",
+      "bytes": 443140,
+      "from_version": "v002",
+      "run_id": "20261123-151737",
+      "model": "gemini-nano-banana-2.1",
+      "prompt_sha256": "9f1a6f1293b83a6187537bc6bf5777588e62071ece66e53072c9df7ea70fb1ec"
+    },
+    {
+      "view": "in_hand",
+      "file": "reference/in_hand.jpg",
+      "sha256": "dbef92f6ba1140e24074c6908d42a02426df73cce932796b6799ff2cec7c2f7b",
+      "bytes": 417072,
+      "from_version": "v002",
+      "run_id": "20261123-151753",
+      "model": "gemini-nano-banana-2.1",
+      "prompt_sha256": "0cf0f8d3e0ffeb47b13c5a98107663b5ca2c5de898d8afb80cfbc4e7ce71787e"
+    }
+  ],
+  "history": []
+}

@@ -37,7 +37,7 @@ def test_map_command_writes_doc(tmp_path, monkeypatch, capsys):
     (tmp_path / "docs").mkdir()
     assert cli.main(["map", "--write"]) == 0
     assert (tmp_path / "docs" / "workflow_map.md").read_text(encoding="utf-8").startswith("# ASS 공정 지도")
-    assert "명령 12개 중 4개가 있다" in capsys.readouterr().out
+    assert "명령 12개 중 6개가 있다" in capsys.readouterr().out
 
 
 def test_guard_block_is_reported_not_crashed(monkeypatch, capsys):

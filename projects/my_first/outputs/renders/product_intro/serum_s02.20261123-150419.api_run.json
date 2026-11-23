@@ -1,0 +1,37 @@
+{
+  "run_id": "20261123-150419",
+  "purpose": "ass render product_intro serum_s02",
+  "episode": "product_intro",
+  "scene_id": "serum_s02",
+  "created_at": "2026-11-23T06:04:19.506257+00:00",
+  "model": "gemini-omni-1.2-flash",
+  "sdk": "google-genai",
+  "sdk_version": "3.6.1",
+  "python_version": "3.13.18",
+  "request": {
+    "model": "gemini-omni-1.2-flash",
+    "input": "Vertical 9:16 video, 15 seconds, one continuous scene. Clean realistic product video, soft natural daylight, shallow depth of field, calm and minimal.\nSetting: The same bright minimal bathroom counter by a window, white tiles, a folded towel.\nProducts (keep shape, color and label exactly as described):\n- MOALAB Aqua Serum: a 30 ml frosted glass dropper bottle with a white cap and a pale blue label reading MOALAB\nAction:\n[0-4s] A hand places the MOALAB Aqua Serum bottle on the center of the counter with the label facing the camera. Camera: static product shot, then slow push-in.\n[4-10s] The dropper is lifted out and one clear, thin gel drop slowly falls back into the bottle. Camera: macro shot on the dropper tip, shallow depth of field.\n[10-15s] The bottle slowly rotates one full turn on the counter, showing its frosted glass and white cap. Camera: static, eye-level.\nAudio: Quiet bathroom room tone, a soft glass clink as the bottle is set down, one tiny liquid drop.\nConstraints: No human faces. No added text overlays, captions or subtitles (the product label itself stays). No background music. No speech, narration or voice-over.",
+    "response_format": {
+      "type": "video",
+      "aspect_ratio": "9:16",
+      "resolution": "720p",
+      "duration": "15s"
+    }
+  },
+  "prompt_sha256": "b49ae43bf8bbc5ae2521708f6b5cf8007e5fab861cf325a1c1adcc3ae99f5a54",
+  "policy_hashes": {
+    "production_spec": "dec8fd8becd5",
+    "models": "d99560c0887b",
+    "budget_policy": "5fa1c47512b3"
+  },
+  "interaction_id": null,
+  "output_path": null,
+  "elapsed_s": null,
+  "estimated_cost_usd": 1.05,
+  "billed_cost_usd": null,
+  "status": "dry_run",
+  "attempts": 0,
+  "attempt_errors": [],
+  "error": null,
+  "notes": null
+}

@@ -185,17 +185,27 @@ def preview(episode: str, scene: str, example_dir: Path = EXAMPLE_DIR) -> str:
     return "\n".join(parts)
 
 
-def list_outputs(output_dir: Path = OUTPUT_DIR, limit: int = 200) -> list[tuple[str, str, str]]:
-    """산출물 목록: (상대 경로, 수정 시각, 크기). 최근 것부터."""
-    if not output_dir.is_dir():
-        return []
-    files = [p for p in output_dir.rglob("*") if p.is_file() and p.name != ".gitkeep"]
+def list_outputs(output_dir: Path = OUTPUT_DIR, limit: int = 200,
+                 example_dir: Path | None = None) -> list[tuple[str, str, str]]:
+    """산출물 목록: (산출물 폴더 기준 상대 경로, 수정 시각, 크기). 최근 것부터.
+
+    사람이 고른 레퍼런스(assets/products/<제품>/reference/ 와 reference_manifest.json)는
+    산출물 폴더 밖에 있지만 실행이 만든 것이므로 함께 보여 준다. 경로가 ../ 로 시작한다."""
+    import os
+
+    if example_dir is None and output_dir == OUTPUT_DIR:
+        example_dir = EXAMPLE_DIR
+    files = [p for p in output_dir.rglob("*") if p.is_file() and p.name != ".gitkeep"] if output_dir.is_dir() else []
+    products = (example_dir / "assets" / "products") if example_dir else None
+    if products and products.is_dir():
+        files += [p for p in products.glob("*/reference_manifest.json") if p.is_file()]
+        files += [p for p in products.glob("*/reference/*") if p.is_file()]
     files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     rows = []
     for p in files[:limit]:
         st = p.stat()
         size = f"{st.st_size / 1e6:.1f}MB" if st.st_size >= 1e6 else f"{max(1, st.st_size // 1024)}KB"
-        rows.append((p.relative_to(output_dir).as_posix(),
+        rows.append((Path(os.path.relpath(p, output_dir)).as_posix(),
                      datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M"), size))
     return rows
 
@@ -408,6 +418,17 @@ def sheet_choices(episode: str, example_dir: Path = EXAMPLE_DIR, output_dir: Pat
     return result
 
 
+def reference_status(choice: SheetChoice) -> str:
+    """레퍼런스 고르기 창의 오른쪽 칸. 지금 쓰는 레퍼런스가 무엇인지와, 그보다 새 후보가 있는지."""
+    if not choice.versions and not choice.current:
+        return "없음 · 만든 후보도 없음"
+    if not choice.current:
+        return f"없음 → [기록]을 누르면 {choice.versions[0]}"
+    if choice.versions and choice.versions[0] != choice.current:
+        return f"{choice.current} · 새 후보 {choice.versions[0]} 있음"
+    return choice.current
+
+
 def select_runs(picks: dict[tuple[str, str], str], by: str, note: str = "") -> list[list[str]]:
     """{(제품, 방향): 버전} 을 제품마다 `ass sheet --select …` 한 번으로 바꾼다."""
     runs = []
@@ -419,6 +440,79 @@ def select_runs(picks: dict[tuple[str, str], str], by: str, note: str = "") -> l
         argv += ["--by", by]
         runs.append(argv + (["--note", note] if note else []))
     return runs
+
+
+def brief_runs(episode: str, data: dict[str, Any], dry_run: bool = True) -> list[list[str]]:
+    """소재 입력 화면의 값으로 `ass brief` 한 번. 소유 확인 표시가 없으면 만들지 않는다."""
+    if not data.get("owner_confirmed"):
+        raise ValueError("“내가 쓴 것이거나 쓸 권리가 있는 소재다”에 표시해야 초안을 만든다")
+    argv = ["brief", "--episode", episode, "--type", data["source_type"], "--format", data["format"]]
+    if data.get("products"):
+        argv += ["--products", ",".join(data["products"])]
+    if data.get("origin"):
+        argv += ["--origin", data["origin"]]
+    return [argv + ["--owner-confirmed"] + (["--dry-run"] if dry_run else [])]
+
+
+def script_runs(episode: str, dry_run: bool = True) -> list[list[str]]:
+    return [["script", "--episode", episode] + (["--dry-run"] if dry_run else [])]
+
+
+def draft_cost(input_chars: int) -> float:
+    """글 모델 한 번의 어림 상한. 지시문과 제품 사실의 몫으로 2000자를 더한다."""
+    from ass.guards.cost_guard import estimate_text_cost
+
+    policy = load_policy("draft_policy").data
+    return estimate_text_cost(input_chars + 2000, load_policy("models").data, int(policy["output_tokens_ceiling"]))
+
+
+class SheetView(BaseModel):
+    """레퍼런스 시트의 방향 하나. 콘솔의 '일부 방향만 다시 만들기' 창에 보인다."""
+
+    id: str
+    name: str
+    anchor: bool = False
+
+
+def sheet_views() -> list[SheetView]:
+    recipe = load_policy("reference_sheet").data
+    return [SheetView(id=v["id"], name=v["name_ko"], anchor=v["id"] == recipe["anchor_view"]) for v in recipe["views"]]
+
+
+def sheet_has_photos(product_id: str, example_dir: Path = EXAMPLE_DIR) -> bool:
+    from ass.production import reference_sheet as rs
+
+    return bool(rs.photo_paths(product_id, load_policy("reference_sheet").data, example_dir))
+
+
+def partial_sheet_views(product_id: str, views: list[str], example_dir: Path = EXAMPLE_DIR) -> list[str]:
+    """고른 방향을 레시피의 순서로 돌려준다. 사진이 없으면 기준 방향을 앞에 더한다.
+
+    후보는 실행마다 새 폴더(v00N)에 생기고, 사진이 없는 길에서는 그 폴더의 기준 방향을 보고 나머지를 그린다."""
+    recipe = load_policy("reference_sheet").data
+    known = [v["id"] for v in recipe["views"]]
+    unknown = [v for v in views if v not in known]
+    if unknown:
+        raise ValueError(f"없는 방향: {', '.join(unknown)}")
+    wanted = set(views)
+    if wanted and not sheet_has_photos(product_id, example_dir):
+        wanted.add(recipe["anchor_view"])
+    return [v for v in known if v in wanted]
+
+
+def partial_sheet_runs(product_id: str, views: list[str], dry_run: bool = True, approved_by: str = "") -> list[list[str]]:
+    """`ass sheet --product … --views a,b` 한 번."""
+    if not views:
+        raise ValueError("만들 방향을 하나 이상 고른다")
+    argv = ["sheet", "--product", product_id, "--views", ",".join(views)]
+    if approved_by:
+        argv += ["--approved-by", approved_by]
+    return [argv + (["--dry-run"] if dry_run else [])]
+
+
+def partial_sheet_cost(count: int) -> float:
+    recipe = load_policy("reference_sheet").data
+    return round(estimate_image_cost(recipe["image"]["size"], load_policy("models").data, count), 2)
 
 
 class RenderChoice(BaseModel):

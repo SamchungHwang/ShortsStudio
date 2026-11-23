@@ -223,6 +223,44 @@ def save_brief(project_dir: Path, episode: str, data: dict[str, Any], source_tex
     return brief
 
 
+def save_source(project_dir: Path, episode: str, text: str) -> Path:
+    """붙여 넣은 원문을 sources/<편>.txt 에 적는다. 초안을 만들 때 읽는다."""
+    episode = check_id(episode, "편 이름")
+    if not text.strip():
+        raise InputError("원문이 비어 있다. 아이디어 한 줄이라도 적는다")
+    target = project_dir / "sources" / f"{episode}.txt"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text.strip() + "\n", encoding="utf-8")
+    return target
+
+
+def source_text(project_dir: Path, episode: str) -> str:
+    path = project_dir / "sources" / f"{episode}.txt"
+    return path.read_text(encoding="utf-8") if path.is_file() else ""
+
+
+# ---------------------------------------------------------------- 초안 (6장)
+def draft_brief_doc(project_dir: Path, episode: str) -> dict[str, Any] | None:
+    """ass brief 가 만든 소재 요약 초안. 없으면 None."""
+    path = project_dir / "drafts" / episode / "brief.yaml"
+    return load_yaml(path) if path.is_file() else None
+
+
+def draft_scene_doc(project_dir: Path, episode: str, number: int) -> dict[str, Any] | None:
+    """ass script 가 만든 장면 초안. 없으면 None."""
+    path = project_dir / "drafts" / episode / f"scene_{number:02d}.yaml"
+    return load_yaml(path) if path.is_file() else None
+
+
+def draft_scene_check(project_dir: Path, episode: str, number: int) -> list[str]:
+    """장면 초안에서 사람이 확인할 것 가운데 이 장면과 편 전체에 해당하는 줄."""
+    path = project_dir / "drafts" / episode / "script_check.yaml"
+    if not path.is_file():
+        return []
+    lines = (load_yaml(path) or {}).get("check") or []
+    return [x for x in lines if not x.startswith("장면 ") or x.startswith(f"장면 {number}")]
+
+
 # ---------------------------------------------------------------- 장면
 def scene_path(project_dir: Path, episode: str, number: int) -> Path | None:
     found = sorted((project_dir / "episodes" / episode).glob(f"scene_{number:02d}_*.yaml"))

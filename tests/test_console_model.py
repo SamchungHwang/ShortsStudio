@@ -9,7 +9,7 @@ from ass.workflow import load_workflow
 def test_stage_rows_show_which_commands_exist(models_config):
     rows = model.stage_rows(load_workflow(), cli.available_commands(), models_config)
     assert [r.name for r in rows] == ["소재", "대본", "제품 레퍼런스", "장면 생성", "오디오", "조립·업로드"]
-    assert rows[1].commands == "script [없음] · compile [있음]"
+    assert rows[1].commands == "script [있음] · compile [있음]"
     assert (rows[3].ready, rows[3].total) == (1, 3)
     assert rows[3].models == "Gemini Omni Flash 1.2"
 
@@ -125,3 +125,18 @@ def test_finish_state_는_종료코드를_말로_바꾼다():
     assert m.finish_state(1) == ("실패했습니다 (종료코드 1)", "fail")
     assert m.finish_state(1, stopped=True) == ("멈췄습니다", "stop")
     assert m.finish_mark(0) == "✔" and m.finish_mark(2) == "✖"
+
+
+def test_산출물_목록에는_고른_레퍼런스와_기록도_나온다(tmp_path):
+    out, project = tmp_path / "outputs", tmp_path
+    (out / "sheets").mkdir(parents=True)
+    (out / "sheets" / "a.jpg").write_bytes(b"1")
+    base = project / "assets" / "products" / "p1"
+    (base / "reference").mkdir(parents=True)
+    (base / "reference" / "front.jpg").write_bytes(b"2")
+    (base / "reference_manifest.json").write_text("{}", encoding="utf-8")
+    (base / "photos").mkdir()
+    (base / "photos" / "mine.jpg").write_bytes(b"3")          # 내가 넣은 사진은 산출물이 아니다
+    paths = {row[0] for row in model.list_outputs(out, example_dir=project)}
+    assert paths == {"sheets/a.jpg", "../assets/products/p1/reference/front.jpg", "../assets/products/p1/reference_manifest.json"}
+    assert {row[0] for row in model.list_outputs(out)} == {"sheets/a.jpg"}

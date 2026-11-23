@@ -17,6 +17,8 @@
     ass sheet                        # 레퍼런스 시트 후보 만들기 (Nano Banana)
     ass sheet --select v001 --by 이름   # 사람이 고른 후보를 기록한다
     ass cost                         # 실행 기록을 모아 비용 장부와 오류 기록을 만든다
+    ass brief --episode 편 --owner-confirmed    # 원문 → 소재 요약 초안 (글 모델)
+    ass script --episode 편                     # 소재 요약 → 장면 사양 초안 (글 모델)
 """
 from __future__ import annotations
 
@@ -28,10 +30,11 @@ import sys
 from datetime import datetime
 
 from ass import __version__
-from ass.guards.cost_guard import BudgetGuard, UnknownPrice, estimate_image_cost, estimate_video_cost
+from ass.guards.cost_guard import BudgetGuard, UnknownPrice, estimate_image_cost, estimate_text_cost, estimate_video_cost
 from ass.policy import load_policy
 from ass import ledger
-from ass.production import assembler, bible_lint, image_client, omni_client, reference_sheet, retry, reuse
+from ass.production import (assembler, bible_lint, drafting, image_client, omni_client, reference_sheet, retry, reuse,
+                            text_client)
 from ass.production.claims_guard import ClaimsGuard
 from ass.production.grammar import check_grammar, storyboard_markdown
 from ass.production.product_bible import load_product_bible
@@ -465,6 +468,199 @@ def cmd_bible(args: argparse.Namespace) -> int:
     return 4 if errors else 0
 
 
+def _dump_yaml(doc: dict, path, header: str) -> None:
+    import yaml
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(header + "\n" + yaml.safe_dump(doc, allow_unicode=True, sort_keys=False, width=1000), encoding="utf-8")
+
+
+def _draft_call(kind: str, episode: str, prompt: str, system: str, policy, models, *, dry_run: bool):
+    """글 모델을 한 번 부른다. (읽은 JSON 또는 None, 기록, 종료코드)를 돌려준다. 실패와 요청만 확인도 기록으로 남긴다."""
+    text_model = models.data["text"]
+    request = text_client.build_request(prompt, model=text_model.get("id"), system_instruction=system,
+                                        temperature=policy.data.get("temperature"))
+    budget = load_policy("budget_policy")
+    cost = estimate_text_cost(len(prompt) + len(system), models.data, int(policy.data["output_tokens_ceiling"]))
+    guard = BudgetGuard(_run_budget_usd(budget.data))
+    run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
+    out_dir = OUTPUT_DIR / "drafts" / episode
+    record = RunRecord(
+        run_id=run_id, purpose=f"ass {kind} {episode}", episode=episode, scene_id=kind, model=request["model"],
+        request={"model": request["model"], "input_chars": len(prompt), "system_chars": len(system),
+                 "generation_config": request.get("generation_config", {})},
+        prompt_sha256=hashlib.sha256((system + "\n" + prompt).encode("utf-8")).hexdigest(),
+        policy_hashes={p.name: p.policy_hash for p in (policy, models, budget)}, estimated_cost_usd=cost,
+        notes="추정 비용은 어림 상한이다. 글자 수를 토큰 수로 쳤고 단가는 확인하지 못한 값이다",
+    )
+    record_path = out_dir / f"{kind}.{run_id}.api_run.json"
+    print(f"모델 {request['model']} | 보내는 글 {len(prompt) + len(system)}자 | 어림 상한 ${cost:.4f} "
+          f"(실행 예산 ${guard.cap_usd:.2f})")
+    print("--- 지시 ---")
+    print(system.strip())
+    print("--- 보내는 글 ---")
+    print(prompt)
+    if dry_run:
+        record.status = "dry_run"
+        print(f"\n[dry-run] 호출하지 않았다. 기록: {record.save(record_path)}")
+        return None, record, 0
+    if not os.environ.get("GEMINI_API_KEY"):
+        print("\nGEMINI_API_KEY 가 없다. .env.example 을 .env 로 복사해 키를 넣는다. ass doctor 로 확인한다.")
+        return None, record, 2
+
+    def before_attempt(attempt: int) -> None:
+        guard.charge(cost, f"{kind} {episode} ({attempt}번째 시도)")
+        record.attempts = attempt
+
+    def on_retry(attempt: int, exc: BaseException, wait: float) -> None:
+        print(f"\n{attempt}번째 시도 실패: {type(exc).__name__}: {exc}\n{wait:.0f}초 뒤에 다시 시도한다", flush=True)
+
+    print("\n초안을 만드는 중 …", flush=True)
+    try:
+        result, record.attempt_errors = retry.call_with_retry(
+            lambda: text_client.generate(request), load_policy("retry_policy").data,
+            before_attempt=before_attempt, on_retry=on_retry)
+    except Exception as exc:
+        record.status, record.error = "error", f"{type(exc).__name__}: {exc}"
+        record.attempt_errors = list(getattr(exc, "attempt_errors", []))
+        record.save(record_path)
+        print(f"실패: {record.error}")
+        hint = omni_client.explain_error(exc)
+        if hint:
+            print(f"조치: {hint}")
+        return None, record, 1
+    record.interaction_id, record.elapsed_s = result.interaction_id, result.elapsed_s
+    if result.usage:
+        record.notes = f"{record.notes} | usage={json.dumps(result.usage, ensure_ascii=False, default=str)}"
+    raw_path = out_dir / f"{kind}.{run_id}.answer.txt"
+    raw_path.parent.mkdir(parents=True, exist_ok=True)
+    raw_path.write_text(result.text, encoding="utf-8")
+    record.output_path = str(raw_path)
+    try:
+        doc = text_client.parse_json(result.text)
+    except text_client.DraftParseError as exc:
+        record.status, record.error = "error", f"DraftParseError: {exc}"
+        record.save(record_path)
+        print(f"실패: 모델의 답을 읽지 못했다. {exc}\n받은 글: {raw_path}")
+        return None, record, 1
+    record.save(record_path)
+    print(f"받았다 ({result.elapsed_s:.1f}초). 받은 글: {raw_path}")
+    return doc, record, 0
+
+
+def _print_check(issues: list[str]) -> None:
+    if not issues:
+        print("확인할 것: 프로그램이 찾은 것은 없다. 그래도 사람이 원문과 견주어 읽는다.")
+        return
+    print(f"확인할 것 {len(issues)}개:")
+    for issue in issues:
+        print(f"  ! {issue}")
+
+
+def cmd_brief(args: argparse.Namespace) -> int:
+    """원문(아이디어 한 줄, 본인 블로그 글, 본인 영상의 대본)에서 소재 요약의 초안을 만든다. 저장본은 건드리지 않는다."""
+    if not args.owner_confirmed:
+        print("[막힘] 내가 쓴 것이거나 쓸 권리가 있는 소재만 보낸다. 확인했으면 --owner-confirmed 를 붙인다. "
+              "콘솔에서는 소재 입력의 “내가 쓴 것이거나 쓸 권리가 있는 소재다”에 표시한다.")
+        return 2
+    spec, policy, models = load_policy("production_spec"), load_policy("draft_policy"), load_policy("models")
+    if args.format not in spec.data["formats"]:
+        print(f"[막힘] 없는 형식: {args.format}. 있는 것: {', '.join(spec.data['formats'])}")
+        return 2
+    bible = load_product_bible(EXAMPLE_DIR / "product_bible.yaml")
+    product_ids = [p.strip() for p in (args.products or "").split(",") if p.strip()]
+    try:
+        products = [bible.get(pid) for pid in product_ids]
+    except KeyError as exc:
+        print(f"[막힘] {exc.args[0]}. 있는 제품: {', '.join(bible.products)}")
+        return 2
+    source_path = EXAMPLE_DIR / "sources" / f"{args.episode}.txt"
+    source_text = args.idea or (source_path.read_text(encoding="utf-8") if source_path.is_file() else "")
+    if args.source_type != "idea" and not args.origin:
+        print("[막힘] 블로그 글이나 영상의 대본은 출처(--origin)를 적는다.")
+        return 2
+    try:
+        prompt = drafting.brief_prompt(policy.data, source_type=args.source_type, fmt=args.format,
+                                       format_spec=spec.data["formats"][args.format], products=products,
+                                       source_text=source_text)
+    except ValueError as exc:
+        print(f"[막힘] {exc}. 원문은 소재 입력의 원문 칸에 적거나 {source_path} 에 둔다.")
+        return 2
+    draft, record, code = _draft_call("brief", args.episode, prompt, policy.data["brief"]["system"], policy, models,
+                                      dry_run=args.dry_run)
+    if draft is None:
+        return code
+    issues = drafting.check_brief(draft, source_text=source_text, source_type=args.source_type, products=products,
+                                  quote_min_chars=int(policy.data["quote_min_chars"]))
+    doc = drafting.brief_draft_doc(draft, episode=args.episode, source_type=args.source_type, fmt=args.format,
+                                   origin=args.origin, product_ids=product_ids, issues=issues,
+                                   model=record.model, created_at=record.created_at)
+    target = EXAMPLE_DIR / "drafts" / args.episode / "brief.yaml"
+    _dump_yaml(doc, target, f"# 소재 요약 초안 — {record.model} 이 만들었다. 사람이 고쳐서 저장해야 쓰인다")
+    print(f"\n제목: {doc['title_ko']}\n약속: {doc['promise_ko']}")
+    for n, point in enumerate(doc["key_points"], 1):
+        print(f"요점 {n}: {point['text_ko']}")
+        print(f"    인용: {point.get('quote', '—')} · 근거: {', '.join(point.get('evidence', [])) or '—'}")
+    _print_check(issues)
+    print(f"초안: {target}\n다음: [입력] → ② 소재 입력 → [초안 불러오기]. 고친 뒤 저장한다.")
+    return 0
+
+
+def cmd_script(args: argparse.Namespace) -> int:
+    """저장된 소재 요약에서 장면 사양 셋의 초안을 만든다. 저장본은 건드리지 않는다."""
+    from ass.production.source_brief import load_source_brief
+
+    spec, policy, models = load_policy("production_spec"), load_policy("draft_policy"), load_policy("models")
+    brief_path = EXAMPLE_DIR / "source_briefs" / f"{args.episode}.yaml"
+    if not brief_path.is_file():        # 견본은 편 폴더와 소재 요약의 이름이 다르다. 장면에 적힌 episode_id 로 찾는다
+        scenes = sorted((EXAMPLE_DIR / "episodes" / args.episode).glob("scene_*.yaml"))
+        if scenes:
+            brief_path = EXAMPLE_DIR / "source_briefs" / f"{load_scene(scenes[0]).episode_id}.yaml"
+    if not brief_path.is_file():
+        print(f"[막힘] 소재 요약이 없다: {brief_path}. 먼저 소재 입력을 저장한다.")
+        return 2
+    try:
+        brief = load_source_brief(brief_path)
+    except Exception as exc:
+        print(f"[막힘] 소재 요약을 읽지 못했다: {exc}")
+        return 2
+    bible = load_product_bible(EXAMPLE_DIR / "product_bible.yaml")
+    try:
+        products = [bible.get(pid) for pid in brief.products]
+    except KeyError as exc:
+        print(f"[막힘] {exc.args[0]}")
+        return 2
+    format_spec = spec.data["formats"][brief.format]
+    prompt = drafting.script_prompt(policy.data, brief=brief.model_dump(), format_spec=format_spec,
+                                    production_spec=spec.data, products=products)
+    draft, record, code = _draft_call("script", args.episode, prompt, policy.data["script"]["system"], policy, models,
+                                      dry_run=args.dry_run)
+    if draft is None:
+        return code
+    try:
+        docs = drafting.scene_docs(draft, episode=args.episode, fmt=brief.format, format_spec=format_spec,
+                                   product_ids=list(brief.products))
+    except ValueError as exc:
+        print(f"실패: {exc}")
+        return 1
+    issues = drafting.check_scenes(docs, products=products, production_spec=spec.data)
+    folder = EXAMPLE_DIR / "drafts" / args.episode
+    for n, doc in enumerate(docs, 1):
+        _dump_yaml(doc, folder / f"scene_{n:02d}.yaml", f"# 장면 {n} 초안 — {record.model} 이 만들었다. 사람이 고쳐서 저장해야 쓰인다")
+        print(f"\n=== 장면 {n} · {doc['role']} ===")
+        for beat in doc["beats"]:
+            print(f"[{beat.get('start_s')}-{beat.get('end_s')}s] {beat.get('visual_ko', '')}")
+            print(f"    내레이션: {beat.get('narration_ko', '—')} · 자막: {beat.get('caption_ko', '—')} · "
+                  f"근거: {', '.join(beat.get('evidence', [])) or '—'}")
+    _dump_yaml({"by": record.model, "created_at": record.created_at, "check": issues}, folder / "script_check.yaml",
+               "# 장면 초안에서 사람이 확인할 것")
+    print()
+    _print_check(issues)
+    print(f"초안: {folder}\\scene_01.yaml … scene_{len(docs):02d}.yaml\n"
+          f"다음: [입력] → ③ 장면 작성 → [초안 불러오기]. 장면마다 고친 뒤 저장한다.")
+    return 0
+
+
 def cmd_sheet(args: argparse.Namespace) -> int:
     """제품 레퍼런스 시트. 후보를 만들거나(--select 없이), 사람이 고른 후보를 기록한다(--select)."""
     bible = load_product_bible(EXAMPLE_DIR / "product_bible.yaml")
@@ -691,6 +887,22 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--by", default=None, help="--select 와 함께. 고른 사람")
     s.add_argument("--note", default=None, help="--select 와 함께. 고른 이유")
     s.set_defaults(func=cmd_sheet)
+
+    bf = sub.add_parser("brief", help="원문에서 소재 요약의 초안을 만든다 (글 모델)")
+    bf.add_argument("--episode", default="product_intro")
+    bf.add_argument("--type", dest="source_type", default="idea", choices=["idea", "own_blog", "own_video_script"])
+    bf.add_argument("--format", default="product_intro")
+    bf.add_argument("--products", default="", help="나오는 제품 id. 쉼표로 여럿")
+    bf.add_argument("--origin", default=None, help="블로그 글이나 영상의 주소, 파일 경로")
+    bf.add_argument("--idea", default=None, help="아이디어 한 줄. 없으면 sources/<편>.txt 를 읽는다")
+    bf.add_argument("--owner-confirmed", action="store_true", help="내가 쓴 것이거나 쓸 권리가 있는 소재임을 확인했다")
+    bf.add_argument("--dry-run", action="store_true", help="호출하지 않고 보내는 글만 출력")
+    bf.set_defaults(func=cmd_brief)
+
+    sc = sub.add_parser("script", help="소재 요약에서 장면 사양의 초안을 만든다 (글 모델)")
+    sc.add_argument("--episode", default="product_intro")
+    sc.add_argument("--dry-run", action="store_true", help="호출하지 않고 보내는 글만 출력")
+    sc.set_defaults(func=cmd_script)
 
     u = sub.add_parser("reuse", help="다른 프로젝트에서 같은 프롬프트로 만든 영상을 가져온다 (비용 없음)")
     u.add_argument("--from", dest="source", default="sample", help="가져올 곳. 프로젝트 이름. 기본은 견본(sample)")

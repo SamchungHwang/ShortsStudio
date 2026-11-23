@@ -5,7 +5,7 @@
     interaction = client.interactions.create(
         model="gemini-nano-banana-2.1",
         input=[{"type": "text", "text": ...}, {"type": "image", "data": <base64>, "mime_type": "image/png"}],
-        response_format={"type": "image", "mime_type": "image/png", "aspect_ratio": "1:1", "image_size": "1K"},
+        response_format={"type": "image", "mime_type": "image/jpeg", "aspect_ratio": "1:1", "image_size": "1K"},
     )
     base64.b64decode(interaction.output_image.data)
 
@@ -36,7 +36,7 @@ class ImageResult(BaseModel):
 
 
 def build_request(prompt: str, *, model: str, image_paths: list[str | Path] | None = None,
-                  aspect_ratio: str = "1:1", image_size: str = "1K", mime_type: str = "image/png",
+                  aspect_ratio: str = "1:1", image_size: str = "1K", mime_type: str = "image/jpeg",
                   max_images: int = 14) -> dict[str, Any]:
     """interactions.create 에 넘길 인자를 만든다. 이미지는 base64 로 싣는다."""
     if image_size not in IMAGE_SIZES:

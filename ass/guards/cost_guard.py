@@ -42,6 +42,19 @@ def estimate_image_cost(image_size: str, models_config: dict[str, Any], count: i
     return round(count * float(unit), 4)
 
 
+def estimate_text_cost(input_chars: int, models_config: dict[str, Any], output_tokens: int = 4000) -> float:
+    """글 모델 한 번 호출의 어림 상한(USD). 입력은 글자 수를 토큰 수로 치고, 출력은 정해 둔 상한으로 센다.
+
+    글자 하나가 토큰 몇 개인지, 사고 토큰이 얼마나 붙는지 확인하지 못했다. 단가도 확인하지 못해 높은 쪽 값을 쓴다.
+    그래서 이 값은 '많아야 이만큼'이라는 어림이고, 실제 청구액은 대개 이보다 적을 것으로 본다(E15 에서 확인).
+    """
+    text = models_config.get("text") or {}
+    price_in, price_out = text.get("price_usd_per_1m_input_tokens"), text.get("price_usd_per_1m_output_tokens")
+    if price_in is None or price_out is None:
+        raise UnknownPrice("글 모델의 단가가 없다. configs/models.yaml 의 text 를 확인한다")
+    return round(input_chars * float(price_in) / 1e6 + output_tokens * float(price_out) / 1e6, 4)
+
+
 class BudgetGuard:
     """누적 추정 비용이 상한을 넘지 않게 지킨다."""
 

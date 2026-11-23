@@ -2,8 +2,8 @@
 
 제품 하나를 정해진 몇 방향에서 본 이미지 묶음을 만들고, 사람이 고른 것을 기록한다.
 
-  만들기   outputs/sheets/<제품>/v001/<방향>.png   후보. 다시 만들면 v002 가 생긴다. 지우지 않는다
-  고르기   <예제>/assets/products/<제품>/reference/<방향>.png   사람이 고른 것. 이후 장들이 이것을 쓴다
+  만들기   outputs/sheets/<제품>/v001/<방향>.jpg   후보. 다시 만들면 v002 가 생긴다. 지우지 않는다
+  고르기   <예제>/assets/products/<제품>/reference/<방향>.jpg   사람이 고른 것. 이후 장들이 이것을 쓴다
   기록     <예제>/assets/products/<제품>/reference_manifest.json   무엇을, 누가, 언제, 어느 후보에서
 
 만드는 길은 둘이다. 본인이 찍은 제품 사진이 있으면 그 사진을 보고 그리게 한다(photo).

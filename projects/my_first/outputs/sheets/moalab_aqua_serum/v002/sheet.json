@@ -1,0 +1,22 @@
+{
+  "product_id": "moalab_aqua_serum",
+  "version": "v002",
+  "mode": "text",
+  "views": [
+    "front",
+    "three_quarter",
+    "side",
+    "label",
+    "in_hand"
+  ],
+  "photos": [],
+  "appearance_en": "a 30 ml frosted glass dropper bottle with a white cap and a pale blue label reading MOALAB",
+  "bible_version": "0.1",
+  "approved_by": null,
+  "created_at": "2026-11-23T15:18:09",
+  "estimated_cost_usd": 0.168,
+  "policy_hashes": {
+    "models": "464300884122",
+    "reference_sheet": "717d5bc9cbbb"
+  }
+}

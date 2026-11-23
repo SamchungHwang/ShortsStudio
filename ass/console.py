@@ -124,12 +124,15 @@ class ConsoleApp:
         enter.add_command(label="② 소재 입력…", command=lambda: self.open_form("BriefForm"))
         enter.add_command(label="③ 장면 작성…", command=lambda: self.open_form("SceneForm"))
         enter.add_separator()
+        enter.add_command(label="장면 초안 만들기 (ass script)", command=self.run_script)
+        enter.add_separator()
         enter.add_command(label="프로젝트 폴더 열기", command=lambda: self._open(settings.PROJECT_DIR))
         bar.add_cascade(label="입력", menu=enter)
         work = tk.Menu(bar, tearoff=0)
         work.add_command(label="환경 점검 (ass doctor)", command=self.run_doctor)
         work.add_separator()
         work.add_command(label="제품 바이블 점검 (ass bible)", command=self.run_bible)
+        work.add_command(label="레퍼런스 일부 방향만 다시 만들기… (ass sheet --views)", command=self.remake_views)
         work.add_command(label="레퍼런스 고르기… (ass sheet --select)", command=self.choose_references)
         work.add_separator()
         work.add_command(label="견본에서 만든 영상 가져오기 (ass reuse)", command=self.run_reuse)
@@ -352,7 +355,8 @@ class ConsoleApp:
         stage = self._stage()
         self.command_box.configure(values=stage.commands)
         ready = [c for c in stage.commands if c in self.available]
-        self.command.set(ready[0] if ready else stage.commands[0])
+        runnable = [c for c in ready if c in model.RUNNABLE]     # [실행]으로 돌릴 수 있는 것을 먼저. 2단계는 compile
+        self.command.set((runnable or ready or stage.commands)[0])
         self.on_selection()
 
     def on_episode(self) -> None:
@@ -510,6 +514,86 @@ class ConsoleApp:
             return
         self._begin(model.build_runs("bible", self.episode.get()))
 
+    def remake_views(self) -> None:
+        """다섯 방향 가운데 고른 것만 새 후보로 만든다. 요청만 확인 칸의 체크를 그대로 따른다."""
+        if self.process is not None:
+            return
+        try:
+            products = model.episode_products(self.episode.get())
+            views = model.sheet_views()
+        except Exception as exc:
+            messagebox.showwarning("만들 수 없습니다", str(exc))
+            return
+        if not products:
+            messagebox.showinfo("제품이 없습니다", "이 편의 장면에 제품이 없습니다. 장면 작성에서 제품을 먼저 넣으세요.")
+            return
+        win = tk.Toplevel(self.root)
+        win.title("레퍼런스 일부 방향만 다시 만들기")
+        win.transient(self.root)
+        mode = ("지금은 ‘호출하지 않고 요청만 확인’에 체크가 있어 계획만 보여 줍니다. 비용이 들지 않습니다."
+                if self.dry_run.get() else "지금은 실제로 생성합니다. 한 장마다 비용이 듭니다.")
+        ttk.Label(win, padding=10, wraplength=560, justify="left",
+                  text="다시 만들 방향에만 표시합니다. 새 후보 번호(v00N)로 생기고, 앞서 만든 후보는 그대로 남습니다.\n" + mode
+                  ).grid(row=0, column=0, columnspan=2, sticky="w")
+        ttk.Label(win, text="제품", padding=(10, 3)).grid(row=1, column=0, sticky="w")
+        names = {f"{p.name_ko} ({p.id})": p for p in products}
+        product_var = tk.StringVar(value=next(iter(names)))
+        ttk.Combobox(win, textvariable=product_var, state="readonly", width=44,
+                     values=list(names)).grid(row=1, column=1, sticky="w", padx=6, pady=3)
+        checks: dict[str, tk.BooleanVar] = {}
+        for row, view in enumerate(views, 2):
+            var = tk.BooleanVar(value=False)
+            ttk.Checkbutton(win, text=f"{view.name} ({view.id})" + (" · 기준 방향" if view.anchor else ""),
+                            variable=var).grid(row=row, column=1, sticky="w", padx=6, pady=2)
+            checks[view.id] = var
+        ttk.Label(win, padding=10, wraplength=560, justify="left", foreground=GREY,
+                  text="본인 사진이 없는 제품은 기준 방향(정면)을 보고 나머지를 그립니다. "
+                       "그래서 정면에 표시하지 않아도 정면을 함께 만듭니다."
+                  ).grid(row=len(views) + 2, column=0, columnspan=2, sticky="w")
+
+        def apply() -> None:
+            product = names[product_var.get()]
+            picked = [vid for vid, var in checks.items() if var.get()]
+            if not picked:
+                messagebox.showinfo("고른 방향이 없습니다", "다시 만들 방향에 표시하세요.", parent=win)
+                return
+            dry = bool(self.dry_run.get())
+            try:
+                wanted = model.partial_sheet_views(product.id, picked)
+                cost = 0.0 if dry else model.partial_sheet_cost(len(wanted))
+            except (UnknownPrice, ValueError) as exc:
+                messagebox.showwarning("실행할 수 없습니다", str(exc), parent=win)
+                return
+            approved_by = ""
+            if not product.is_own:
+                approved_by = (simpledialog.askstring(
+                    "타사 제품 승인",
+                    "타사 제품의 이미지를 만드는 일은 사람이 승인합니다.\n승인하는 사람의 이름을 적으세요.",
+                    parent=win) or "").strip()
+                if not approved_by:
+                    return
+            added = [v for v in wanted if v not in picked]
+            if cost > 0:
+                budget = model.run_budget_usd()
+                if cost > budget:
+                    messagebox.showwarning("예산 상한을 넘습니다",
+                                           f"추정 비용 ${cost:.2f} 가 실행 예산 ${budget:.2f} 를 넘습니다.", parent=win)
+                    return
+                if not messagebox.askokcancel(
+                        "비용이 드는 실행입니다",
+                        f"{product.name_ko} 의 레퍼런스 {len(wanted)}장({', '.join(wanted)})을 실제로 생성합니다.\n"
+                        + (f"사진이 없어 기준 방향({', '.join(added)})을 함께 만듭니다.\n" if added else "")
+                        + f"\n추정 비용 ${cost:.2f} (실행 예산 ${budget:.2f})\n"
+                        "추정값이며 실제 청구액은 결제 화면에서 확인해야 합니다.\n\n실행할까요?", parent=win):
+                    return
+            win.destroy()
+            self._begin(model.partial_sheet_runs(product.id, wanted, dry, approved_by))
+
+        bar = ttk.Frame(win, padding=10)
+        bar.grid(row=len(views) + 3, column=0, columnspan=2, sticky="e")
+        ttk.Button(bar, text="취소", command=win.destroy).pack(side="right", padx=4)
+        ttk.Button(bar, text="실행", command=apply).pack(side="right", padx=4)
+
     def choose_references(self) -> None:
         """후보 가운데 쓸 레퍼런스를 사람이 고른다. 고른 사람의 이름을 함께 적는다."""
         if self.process is not None:
@@ -528,18 +612,21 @@ class ConsoleApp:
         win = tk.Toplevel(self.root)
         win.title("레퍼런스 고르기")
         win.transient(self.root)
-        ttk.Label(win, padding=10, text="후보 이미지를 ‘산출물’ 탭에서 열어 보고, 방향마다 쓸 후보를 고릅니다. "
-                                        "‘그대로 둔다’는 지금 골라져 있는 것을 바꾸지 않습니다."
-                  ).grid(row=0, column=0, columnspan=3, sticky="w")
+        ttk.Label(win, padding=10, justify="left",
+                  text="후보 이미지를 ‘산출물’ 탭에서 열어 보고, 방향마다 쓸 후보를 고릅니다.\n"
+                       "아직 고른 적이 없는 방향은 가장 최근에 만든 후보가 미리 들어 있습니다. [기록]을 눌러야 레퍼런스로 정해집니다.\n"
+                       "‘그대로 둔다’는 지금 쓰고 있는 레퍼런스를 바꾸지 않습니다."
+                  ).grid(row=0, column=0, columnspan=4, sticky="w")
+        for col, title in enumerate(("제품", "방향", "쓸 후보", "지금 쓰는 레퍼런스")):
+            ttk.Label(win, text=title, foreground=GREY, padding=(10, 3)).grid(row=1, column=col, sticky="w")
         selected: dict[tuple[str, str], tk.StringVar] = {}
-        for row, c in enumerate(choices, 1):
+        for row, c in enumerate(choices, 2):
             ttk.Label(win, text=c.product_name, padding=(10, 3)).grid(row=row, column=0, sticky="w")
             ttk.Label(win, text=f"{c.view_name} ({c.view_id})", padding=(10, 3)).grid(row=row, column=1, sticky="w")
-            now = f" · 지금 {c.current}" if c.current else " · 아직 고르지 않음"
             var = tk.StringVar(value=keep if (c.current or not c.versions) else c.versions[0])
             ttk.Combobox(win, textvariable=var, state="readonly" if c.versions else "disabled", width=14,
                          values=[keep] + c.versions).grid(row=row, column=2, sticky="w", padx=6, pady=3)
-            ttk.Label(win, text=now if c.versions else " · 후보 없음", foreground=GREY).grid(row=row, column=3, sticky="w", padx=6)
+            ttk.Label(win, text=model.reference_status(c), foreground=GREY).grid(row=row, column=3, sticky="w", padx=6)
             selected[(c.product_id, c.view_id)] = var
 
         def apply() -> None:
@@ -555,7 +642,7 @@ class ConsoleApp:
             self._begin(model.select_runs(picks, by.strip(), note.strip()))
 
         bar = ttk.Frame(win, padding=10)
-        bar.grid(row=len(choices) + 1, column=0, columnspan=4, sticky="e")
+        bar.grid(row=len(choices) + 2, column=0, columnspan=4, sticky="e")
         ttk.Button(bar, text="취소", command=win.destroy).pack(side="right", padx=4)
         ttk.Button(bar, text="기록", command=apply).pack(side="right", padx=4)
         win.grab_set()
@@ -572,6 +659,30 @@ class ConsoleApp:
                 f"견본에서 {self.episode.get()} 편과 같은 프롬프트로 이미 만든 영상이 있으면 이 프로젝트로 복사합니다.\n"
                 "프롬프트가 한 글자라도 다르면 가져오지 않습니다. 비용은 들지 않습니다.\n\n가져올까요?"):
             self._begin([["reuse", "--from", settings.SAMPLE_NAME, "--episode", self.episode.get()]])
+
+    def run_script(self) -> None:
+        """저장된 소재 요약에서 장면 셋의 초안을 만든다. 요청만 확인 칸의 체크를 따른다. 저장된 장면은 바뀌지 않는다."""
+        episode = self.episode.get()
+        if self.process is not None or not episode:
+            return
+        brief = self._forms().authoring.brief_doc(settings.PROJECT_DIR, episode)
+        if brief is None and settings.PROJECT != settings.SAMPLE_NAME:
+            messagebox.showinfo("소재 요약이 없습니다", "장면 초안은 저장된 소재 요약에서 만듭니다.\n[입력] → ② 소재 입력을 먼저 저장하세요.")
+            return
+        dry = bool(self.dry_run.get())
+        if not dry:
+            try:
+                cost = model.draft_cost(1500)
+            except UnknownPrice as exc:
+                messagebox.showwarning("실행할 수 없습니다", str(exc))
+                return
+            if not messagebox.askokcancel(
+                    "글 모델을 호출합니다",
+                    f"{episode} 편의 소재 요약과 제품 사실을 글 모델에 보내 장면 셋의 초안을 받습니다.\n"
+                    "이미 저장한 장면은 바뀌지 않습니다. 초안은 장면 작성의 [초안 불러오기]로 봅니다.\n\n"
+                    f"어림 상한 ${cost:.2f}\n어림이며 실제 청구액은 결제 화면에서 확인해야 합니다.\n\n실행할까요?"):
+                return
+        self._begin(model.script_runs(episode, dry))
 
     def run_doctor(self) -> None:
         if self.process is not None:
@@ -731,7 +842,7 @@ class ConsoleApp:
     def open_selected_output(self) -> None:
         selected = self.output_tree.selection()
         if selected:
-            self._open(OUTPUT_DIR / self.output_tree.item(selected[0], "values")[0])
+            self._open((OUTPUT_DIR / self.output_tree.item(selected[0], "values")[0]).resolve())
 
     def _open(self, path) -> None:
         try:

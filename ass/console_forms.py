@@ -16,6 +16,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 from typing import Any
 
 from ass import authoring, settings
+from ass import console_model as model
 from ass.authoring import InputError
 from ass.policy import load_policy
 
@@ -302,9 +303,11 @@ class BriefForm:
         cell.grid(row=10, column=1, sticky="ew")
         head = ttk.Frame(cell)
         head.pack(fill="x")
-        ttk.Label(head, text="블로그 글이나 대본을 붙여 넣습니다. 비워도 됩니다. 6장에서 초안을 만들 때 씁니다",
+        ttk.Label(head, text="블로그 글, 대본, 아이디어 한 줄. 손으로 채울 때는 비워도 됩니다",
                   foreground=GREY).pack(side="left", padx=6)
         ttk.Button(head, text="파일에서 불러오기…", command=self.load_source_file).pack(side="right", padx=6)
+        ttk.Button(head, text="초안 불러오기", command=self.load_draft).pack(side="right", padx=6)
+        ttk.Button(head, text="초안 만들기 (ass brief)", command=self.make_draft).pack(side="right", padx=6)
         self.source = TextField(cell, 7)
         self.source.widget.pack(fill="both", expand=True, padx=6, pady=2)
 
@@ -343,6 +346,51 @@ class BriefForm:
         doc["owner_confirmed"] = False          # 이 표시는 사람이 직접 한다. 견본이 대신 하지 않는다
         self.show(doc)
         self.owner_hint.set("← 이 칸은 견본이 채우지 않습니다. 직접 눌러 표시하세요")
+        sample_text = authoring.source_text(settings.SAMPLE_DIR, authoring.SAMPLE_EPISODE)
+        if self.source is not None and sample_text and not self.source.get().strip():
+            self.source.set(sample_text)        # 견본의 블로그 글. 6장의 초안 만들기에 쓴다
+
+    def make_draft(self) -> None:
+        """원문에서 소재 요약의 초안을 만든다 (ass brief). 요청만 확인 칸의 체크를 따른다. 칸은 바뀌지 않는다."""
+        if self.app.process is not None:
+            return
+        episode, data = self.episode.get().strip(), self.collect()
+        text = self.source.get() if self.source is not None else ""
+        dry = bool(self.app.dry_run.get())
+        try:
+            runs = model.brief_runs(episode, data, dry)
+            authoring.save_source(self.project_dir, episode, text)
+            cost = 0.0 if dry else model.draft_cost(len(text))
+        except (InputError, ValueError) as exc:
+            messagebox.showwarning("초안을 만들지 않았습니다", str(exc), parent=self.win)
+            return
+        if cost > 0 and not messagebox.askokcancel(
+                "글 모델을 호출합니다",
+                f"원문 {len(text.strip())}자와 제품 사실을 글 모델에 보내 소재 요약의 초안을 받습니다.\n\n"
+                f"어림 상한 ${cost:.2f}\n어림이며 실제 청구액은 결제 화면에서 확인해야 합니다.\n\n실행할까요?", parent=self.win):
+            return
+        self.app._begin(runs)
+        messagebox.showinfo(
+            "실행했습니다",
+            "실행 로그에 결과가 나옵니다.\n" + ("지금은 요청만 확인입니다. 보내는 글만 보여 줍니다."
+                                           if dry else "끝나면 이 창의 [초안 불러오기]를 누르세요."), parent=self.win)
+
+    def load_draft(self) -> None:
+        """만들어 둔 초안을 칸에 넣는다. 소유 확인 칸은 건드리지 않는다. 저장은 사람이 누른다."""
+        episode = self.episode.get().strip()
+        doc = authoring.draft_brief_doc(self.project_dir, episode)
+        if doc is None:
+            messagebox.showinfo("초안이 없습니다", "먼저 [초안 만들기]를 실행하세요. 요청만 확인 칸에 체크가 있으면 초안이 생기지 않습니다.",
+                                parent=self.win)
+            return
+        doc["owner_confirmed"] = bool(self.owner.get())
+        self.show(doc)
+        check = (doc.get("draft") or {}).get("check") or []
+        messagebox.showinfo(
+            "초안을 넣었습니다",
+            ("확인할 것 " + str(len(check)) + "개:\n\n" + "\n".join(f"· {x}" for x in check) if check
+             else "프로그램이 찾은 것은 없습니다.") + "\n\n원문과 견주어 읽고 고친 뒤 [저장]을 누르세요. 저장해야 쓰입니다.",
+            parent=self.win)
 
     def load_source_file(self) -> None:
         path = filedialog.askopenfilename(parent=self.win, title="내가 쓴 글이나 대본 파일을 고릅니다",
@@ -444,7 +492,8 @@ class SceneForm:
         number.bind("<<ComboboxSelected>>", lambda e: self.load())
         ttk.Label(top, textvariable=self.role, foreground=GREY).pack(side="left", **PAD)
         ttk.Button(top, text="견본으로 채우기", command=self.fill_sample).pack(side="left", padx=12)
-        ttk.Label(top, text="지금 보이는 장면 하나만 채웁니다", foreground=GREY).pack(side="left")
+        ttk.Button(top, text="초안 불러오기", command=self.load_draft).pack(side="left", padx=2)
+        ttk.Label(top, text="둘 다 지금 보이는 장면 하나만 채웁니다", foreground=GREY).pack(side="left", padx=6)
         tk.Label(body, textvariable=self.progress, fg="#1F3A5F", anchor="w").grid(row=9, column=0, sticky="w", padx=6, pady=(6, 0))
 
         head = ttk.Frame(body)
@@ -548,6 +597,20 @@ class SceneForm:
 
     def fill_sample(self) -> None:
         self.show(authoring.sample_scene(self.episode.get().strip(), int(self.number.get())))
+
+    def load_draft(self) -> None:
+        """ass script 가 만든 이 장면의 초안을 칸에 넣는다. 저장은 사람이 누른다."""
+        episode, number = self.episode.get().strip(), int(self.number.get())
+        doc = authoring.draft_scene_doc(self.project_dir, episode, number)
+        if doc is None:
+            messagebox.showinfo("초안이 없습니다", "먼저 [입력] → “장면 초안 만들기”를 실행하세요.", parent=self.win)
+            return
+        self.show(doc)
+        check = authoring.draft_scene_check(self.project_dir, episode, number)
+        messagebox.showinfo(
+            "초안을 넣었습니다",
+            ("확인할 것 " + str(len(check)) + "개:\n\n" + "\n".join(f"· {x}" for x in check) if check
+             else "프로그램이 찾은 것은 없습니다.") + "\n\n읽고 고친 뒤 저장하세요. 저장해야 쓰입니다.", parent=self.win)
 
     def collect(self) -> dict[str, Any]:
         beats = []

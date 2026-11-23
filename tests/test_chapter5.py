@@ -103,7 +103,7 @@ def test_대본에_쓰지_않는_표현이_있으면_컴파일이_막는다(scen
 def test_이미지_요청은_공식_문서의_모양이다(tmp_path):
     plain = image_client.build_request("a bottle", model="gemini-nano-banana-2.1")
     assert plain == {"model": "gemini-nano-banana-2.1", "input": "a bottle",
-                     "response_format": {"type": "image", "mime_type": "image/png", "aspect_ratio": "1:1", "image_size": "1K"}}
+                     "response_format": {"type": "image", "mime_type": "image/jpeg", "aspect_ratio": "1:1", "image_size": "1K"}}
     photo = tmp_path / "front.jpg"
     photo.write_bytes(b"jpeg-bytes")
     request = image_client.build_request("a bottle", model="m", image_paths=[photo], image_size="2K")
@@ -148,7 +148,7 @@ def test_사진이_없으면_기준_방향을_먼저_만들고_나머지는_그�
     plans = reference_sheet.plan_views(product(), RECIPE, [], tmp_path / "v001")
     assert [p.view_id for p in plans] == ["front", "three_quarter", "side", "label", "in_hand"]
     assert plans[0].image_paths == [] and "attached images" not in plans[0].prompt
-    assert all(p.uses_anchor and p.image_paths == [str(tmp_path / "v001" / "front.png")] for p in plans[1:])
+    assert all(p.uses_anchor and p.image_paths == [str(tmp_path / "v001" / "front.jpg")] for p in plans[1:])
     assert "Keep its shape, proportions, colors, cap and label unchanged" in plans[1].prompt
     assert "no people" in plans[0].prompt and "no people" not in plans[4].prompt          # 손이 나오는 방향
     assert "a 30 ml frosted glass dropper bottle" in plans[3].prompt
@@ -223,17 +223,17 @@ def test_sheet_는_후보를_만들고_기록을_남긴다(studio, capsys):
     example, out, calls = studio
     assert cli.main(["sheet"]) == 0
     folder = out / "sheets" / "moalab_aqua_serum" / "v001"
-    assert sorted(p.name for p in folder.glob("*.png") if p.name != "contact_sheet.png") == [
-        "front.png", "in_hand.png", "label.png", "side.png", "three_quarter.png"]
+    assert sorted(p.name for p in folder.glob("*.jpg")) == [
+        "front.jpg", "in_hand.jpg", "label.jpg", "side.jpg", "three_quarter.jpg"]
     assert isinstance(calls[0]["input"], str) and calls[1]["input"][1]["type"] == "image"   # 둘째부터 기준 방향을 본다
     record = json.loads((folder / "label.api_run.json").read_text(encoding="utf-8"))
     assert record["episode"] == "sheet" and record["scene_id"] == "moalab_aqua_serum/label"
-    assert record["estimated_cost_usd"] == 0.0336 and record["attempts"] == 1 and record["request"]["images"] == ["front.png"]
+    assert record["estimated_cost_usd"] == 0.0336 and record["attempts"] == 1 and record["request"]["images"] == ["front.jpg"]
     sheet = json.loads((folder / "sheet.json").read_text(encoding="utf-8"))
     assert sheet["mode"] == "text" and sheet["views"][0] == "front" and sheet["estimated_cost_usd"] == 0.168
     assert "보고 고른다: ass sheet --product moalab_aqua_serum --select v001 --by 이름" in capsys.readouterr().out
     assert cli.main(["sheet", "--views", "front"]) == 0                                    # 다시 만들면 새 버전
-    assert (out / "sheets" / "moalab_aqua_serum" / "v002" / "front.png").is_file()
+    assert (out / "sheets" / "moalab_aqua_serum" / "v002" / "front.jpg").is_file()
     rows = ledger.collect(out)
     assert len(rows) == 6 and rows[0].resolution == "1K" and ledger.summarize(rows).ok_usd == 0.2016
 
@@ -263,8 +263,8 @@ def test_고르는_일은_사람이_하고_기록에_남는다(studio, capsys):
     manifest = json.loads((base / "reference_manifest.json").read_text(encoding="utf-8"))
     assert manifest["manifest_version"] == 1 and manifest["selected_by"] == "황삼청" and manifest["source_mode"] == "text"
     assert [i["view"] for i in manifest["images"]] == ["front", "three_quarter", "side", "label", "in_hand"]
-    assert (base / "reference" / "label.png").read_bytes() == (out / "sheets/moalab_aqua_serum/v001/label.png").read_bytes()
-    assert manifest["images"][0]["sha256"] == reference_sheet.sha256_file(base / "reference" / "front.png")
+    assert (base / "reference" / "label.jpg").read_bytes() == (out / "sheets/moalab_aqua_serum/v001/label.jpg").read_bytes()
+    assert manifest["images"][0]["sha256"] == reference_sheet.sha256_file(base / "reference" / "front.jpg")
 
     assert cli.main(["sheet", "--select", "label=v002", "--by", "황삼청", "--note", "라벨이 더 또렷하다"]) == 0
     manifest = json.loads((base / "reference_manifest.json").read_text(encoding="utf-8"))
@@ -287,7 +287,7 @@ def test_고른_뒤에_바뀐_것을_알아챈다(studio):
     assert "5장 · v001 에서 고름" in reference_sheet.manifest_line(reference_sheet.load_manifest(path))
     changed = p.model_copy(update={"appearance_en": p.appearance_en.replace("white cap", "black cap")})
     assert "외형 서술이 바뀌었다" in reference_sheet.manifest_problems(changed, reference_sheet.load_manifest(path), RECIPE, example)[0]
-    (path.parent / "reference" / "side.png").write_bytes(b"edited")
+    (path.parent / "reference" / "side.jpg").write_bytes(b"edited")
     assert any("파일이 바뀌었다" in m for m in reference_sheet.manifest_problems(p, reference_sheet.load_manifest(path), RECIPE, example))
     assert reference_sheet.manifest_problems(p, None, RECIPE, example) == ["레퍼런스를 아직 고르지 않았다"]
 
@@ -397,3 +397,41 @@ def test_콘솔에서_고른_후보는_select_명령이_된다(studio):
                      "--by", "황삼청", "--note", "라벨"]]
     assert cli.main(runs[0]) == 0
     assert {c.view_id: c.current for c in model.sheet_choices("product_intro", example, out)}["label"] == "v002"
+
+
+def test_일부_방향만_다시_만들_때_사진이_없으면_기준_방향을_더한다(tmp_path):
+    from ass import console_model as m
+
+    assert [v.id for v in m.sheet_views()][0] == "front" and m.sheet_views()[0].anchor
+    assert m.partial_sheet_views("moalab_aqua_serum", ["label"], example_dir=tmp_path) == ["front", "label"]
+    assert m.partial_sheet_views("moalab_aqua_serum", ["side", "front"], example_dir=tmp_path) == ["front", "side"]
+    photos = tmp_path / "assets" / "products" / "moalab_aqua_serum" / "photos"
+    photos.mkdir(parents=True)
+    (photos / "a.jpg").write_bytes(b"x")
+    assert m.partial_sheet_views("moalab_aqua_serum", ["label"], example_dir=tmp_path) == ["label"]
+    with pytest.raises(ValueError):
+        m.partial_sheet_views("moalab_aqua_serum", ["top"], example_dir=tmp_path)
+
+
+def test_일부_방향_실행은_views_인자_하나로_간다():
+    from ass import console_model as m
+
+    assert m.partial_sheet_runs("moalab_aqua_serum", ["front", "label"]) == [
+        ["sheet", "--product", "moalab_aqua_serum", "--views", "front,label", "--dry-run"]]
+    assert m.partial_sheet_runs("haruon_cream_sunscreen", ["front"], dry_run=False, approved_by="황삼청") == [
+        ["sheet", "--product", "haruon_cream_sunscreen", "--views", "front", "--approved-by", "황삼청"]]
+    assert m.partial_sheet_cost(2) == 0.07
+    with pytest.raises(ValueError):
+        m.partial_sheet_runs("moalab_aqua_serum", [])
+
+
+def test_레퍼런스_고르기_창은_지금_쓰는_것과_새_후보를_알려_준다():
+    from ass import console_model as m
+
+    def c(versions, current):
+        return m.SheetChoice(product_id="p", product_name="P", view_id="front", view_name="정면", versions=versions, current=current)
+
+    assert m.reference_status(c([], "")) == "없음 · 만든 후보도 없음"
+    assert m.reference_status(c(["v002", "v001"], "")) == "없음 → [기록]을 누르면 v002"
+    assert m.reference_status(c(["v002", "v001"], "v001")) == "v001 · 새 후보 v002 있음"
+    assert m.reference_status(c(["v002", "v001"], "v002")) == "v002"

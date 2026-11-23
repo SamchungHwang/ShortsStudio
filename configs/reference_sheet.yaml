@@ -5,7 +5,7 @@ version: "2026-11-21"
 image:
   size: "1K"                  # 1K | 2K | 4K. 대문자 K 만 받는다 (공식 문서)
   aspect_ratio: "1:1"
-  mime_type: "image/png"
+  mime_type: "image/jpeg"            # 2026-11-23 실제 호출에서 확인: image/png 는 400 으로 거절된다. 받는 값은 image/jpeg 뿐이다
 # 모든 방향이 함께 쓰는 촬영 조건. 장면의 분위기를 넣지 않는다. 제품만 또렷하게 보이면 된다
 style_en: >-
   Studio product photo on a plain light grey seamless background, soft even lighting, no props,
