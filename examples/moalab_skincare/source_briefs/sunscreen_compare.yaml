@@ -1,0 +1,15 @@
+# 소재 요약 — 제품 비교 편. 아이디어 한 줄에서 시작하고, 요점의 근거는 두 제품의 사실 id 다 (영상은 7장에서 만든다)
+brief_id: sunscreen_compare
+source_type: idea
+owner_confirmed: true
+format: comparison
+title_ko: "젤 선크림과 크림 선크림, 나란히 보기"
+promise_ko: "두 선크림의 용량과 제형을 같은 기준으로 나란히 보여 준다"
+products: [moalab_gel_sunscreen, haruon_cream_sunscreen]
+key_points:
+  - text_ko: "두 선크림 모두 용량은 50ml다"
+    evidence: [gel_sun_volume, cream_sun_volume]
+  - text_ko: "젤 선크림은 투명한 젤 제형, 크림 선크림은 흰색 크림 제형이다"
+    evidence: [gel_sun_texture, cream_sun_texture]
+  - text_ko: "어느 쪽이 낫다고 정하지 않는다. 좋아하는 제형으로 고른다"
+    evidence: [gel_sun_texture, cream_sun_texture]

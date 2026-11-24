@@ -121,11 +121,13 @@ text:
     - "모델 ID gemini-3.8-flash, 안정 버전 (공식 모델 목록, 2026-10-28 갱신)"
     - "Interactions API 로 부른다: client.interactions.create(model, input), 결과는 interaction.output_text"
     - "system_instruction, generation_config(temperature, thinking_level 등)를 받는다 (Interactions API 안내)"
+    - "실제 호출 1회 (2026-11-24, ass brief, my_first): 15.74초, 1번에 성공, 답이 울타리 없는 JSON 으로 왔다. v1beta 클라이언트로 불렀다"
+    - "사용 토큰 수는 interaction.usage 에 온다: total_input_tokens 691, total_output_tokens 247, total_thought_tokens 910, total_tokens 1848 (보낸 글 1238자)"
+    - "실제 호출 2회째 (같은 날, 같은 원문, 보낸 글 1282자): 18.4초, 입력 717 / 출력 255 / 사고 1525. 사고 토큰은 호출마다 크게 다르다"
   unverified:
     - "단가. 공식 가격 페이지에서 이 모델의 칸을 읽지 못했다. 2차 자료 여러 곳이 입력 $0.75 / 출력 $3.75 (2026-12-31 까지의 도입 가격), 그 뒤 $1.50 / $7.50 이라고 적는다"
     - "JSON 스키마를 강제하는 설정값의 이름 (구조화 출력 안내 문서를 읽지 못했다). 지시문으로 JSON 을 요청하고 직접 검사한다"
-    - "사용 토큰 수를 알려 주는 응답 필드의 이름"
-    - "실제 호출 (아직 실행하지 않았다. E15)"
+    - "사고 토큰이 출력 단가로 청구되는지. 실제 청구액 (결제 화면에서 아직 보지 못했다)"
   source: "Gemini API 모델 목록(ai.google.dev/gemini-api/docs/models), Interactions API 안내(ai.google.dev/gemini-api/docs/interactions)"
 
 flow:

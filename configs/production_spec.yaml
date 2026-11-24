@@ -23,6 +23,12 @@ formats:                                 # 세 형식의 장면 뼈대 (3.2절)
     role_names_ko: [질문, 방법 세 가지, 정리]
     min_products: 0
     evidence_roles: []
+    # 제품이 없는 편에는 제품 영상의 말투를 쓰지 않는다. 형식에 적으면 shot.style_en 과 exclusions_en 대신 이것을 쓴다
+    style_en: "Clean realistic everyday video, soft natural daylight, shallow depth of field, calm and minimal"
+    exclusions_en:
+      - "No human faces"
+      - "No added text overlays, captions or subtitles"
+      - "No background music"
 grammar:                                 # 유용한 Shorts의 문법 (3.1절). 어기면 막지 않고 알려 준다
   hook_max_s: 3                          # 첫 구간은 이 길이 안에서 끝나고 내레이션이나 자막이 있어야 한다
   narration_max_chars_per_s: 7           # 공백 제외. status: assumed — 실험 E13 에서 실제 읽는 속도로 확정

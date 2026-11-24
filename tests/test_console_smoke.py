@@ -459,6 +459,7 @@ def test_소재_입력의_초안_만들기와_불러오기(forms):
     assert form.title.get() == "초안 제목" and form.points[0][1].get() == "serum_usage"
     assert form.owner.get() is True                            # 초안이 소유 확인 표시를 끄거나 켜지 않는다
     assert "확인할 것 1개" in console_forms.messagebox.showinfo.call_args[0][1]
+    assert "제목과 약속: 프로그램이 대조하지 않는 칸입니다" in console_forms.messagebox.showinfo.call_args[0][1]
     (draft / "scene_01.yaml").write_text(
         "scene_id: product_intro_s01\nepisode_id: product_intro\nformat: product_intro\nrole: problem\nduration_s: 15\n"
         "products: [moalab_aqua_serum]\nsetting_en: A desk\nbeats:\n  - {start_s: 0, end_s: 15, visual_ko: 초안 화면, visual_en: A desk}\n",
@@ -469,3 +470,63 @@ def test_소재_입력의_초안_만들기와_불러오기(forms):
     scene.load_draft()
     assert scene.beats[0]["visual_ko"].get() == "초안 화면" and scene.setting.get() == "A desk"
     assert "확인할 것 2개" in console_forms.messagebox.showinfo.call_args[0][1]
+
+
+def test_소재_입력의_견본은_형식을_따른다(forms):
+    console_forms, app, project = forms
+    from ass import authoring
+
+    form = console_forms.BriefForm(app)
+    form.open()
+    names = {v: k for k, v in form.formats.items()}
+    assert form.kinds[form.kind.get()] == "own_blog" and form.formats[form.format.get()] == "product_intro"
+    form.fill_sample()                                         # 처음 그대로 누르면 수분 세럼. 3장의 흐름이다
+    assert form.episode.get() == "product_intro" and "수분 세럼" in form.title.get() and "오후 세 시쯤" in form.source.get()
+    form.format.set(names["info"])
+    form.fill_sample()                                         # 정보 전달: 화분에 물 주는 법 (블로그 글)
+    assert form.episode.get() == "watering_plants" and form.products.get() == "" and "손가락" in form.points[0][0].get()
+    assert form.points[0][1].get() == "본인 블로그 글 2문단" and "베란다에 화분 셋" in form.source.get()
+    assert form.collect()["key_points"][0]["evidence"] == ["본인 블로그 글 2문단"]      # 글로 적은 출처가 띄어쓰기에서 쪼개지지 않는다
+    form.kind.set(authoring.SOURCE_TYPES["idea"])
+    form.fill_sample()                                         # 정보 전달 + 아이디어 한 줄: 냉장고 냄새. 요점과 근거까지
+    assert form.episode.get() == "fridge_smell" and form.source.get().strip() == authoring.IDEA_TEXT
+    assert form.title.get() and all(t.get() and "FSIS" in e.get() for t, e in form.points) and form.owner.get() is False
+    data = form.collect()                                      # 근거의 출처가 쉼표로 쪼개지지 않는다
+    assert [len(p["evidence"]) for p in data["key_points"]] == [1, 1, 1]
+    assert authoring.save_brief(project, "fridge_smell", {**data, "owner_confirmed": True}).format == "info"
+    form.format.set(names["comparison"])
+    form.fill_sample()                                         # 제품 비교: 선크림 둘. 등록할 제품을 알려 준다
+    assert form.episode.get() == "sunscreen_compare" and form.products.get() == "moalab_gel_sunscreen, haruon_cream_sunscreen"
+    assert form.points[1][1].get() == "gel_sun_texture, cream_sun_texture"
+    assert "moalab_gel_sunscreen, haruon_cream_sunscreen" in console_forms.messagebox.showinfo.call_args[0][1]
+    form.format.set(names["product_intro"])
+    form.fill_sample()                                         # 되돌아오면 세럼 편과 그 블로그 글
+    assert form.episode.get() == "product_intro" and "오후 세 시쯤" in form.source.get()
+    form.episode.set("my_serum")
+    form.source.set("내가 붙여 넣은 글")
+    form.fill_sample()                                         # 내가 정한 편 이름과 내 글은 바꾸지 않는다
+    assert form.episode.get() == "my_serum" and form.source.get().strip() == "내가 붙여 넣은 글"
+
+
+def test_장면_작성의_견본도_편을_따른다(forms):
+    console_forms, app, project = forms
+    from ass import authoring
+
+    assert authoring.sample_scene_for(project, "watering_plants", 2)["role"] == "methods"
+    assert authoring.sample_scene_for(project, "product_intro", 2)["role"] == "solution"
+    assert authoring.sample_scene_for(project, "my_new_episode", 1)["role"] == "problem"     # 소재 요약이 없으면 세럼
+    (project / "source_briefs").mkdir(parents=True, exist_ok=True)
+    (project / "source_briefs" / "sunscreen_compare.yaml").write_text("format: comparison\n", encoding="utf-8")
+    assert authoring.sample_scene_for(project, "sunscreen_compare", 1) is None              # 비교 편의 장면 견본은 없다
+
+
+def test_아이디어_한_줄에서_시작한_편은_근거가_비면_저장하지_않는다(forms):
+    console_forms, app, project = forms
+    from ass import authoring
+
+    data = {**authoring.sample_idea_brief(), "owner_confirmed": True,
+            "key_points": [{"text_ko": "상한 음식부터 버린다", "evidence": []}]}
+    with pytest.raises(authoring.InputError, match="요점 1의 근거가 비어 있다"):
+        authoring.save_brief(project, "fridge_smell", data)
+    data["key_points"][0]["evidence"] = ["직접 해 봄, 2026-11"]
+    assert authoring.save_brief(project, "fridge_smell", data).format == "info"

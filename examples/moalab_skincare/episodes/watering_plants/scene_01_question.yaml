@@ -1,0 +1,30 @@
+scene_id: plant_s01
+episode_id: watering_plants
+format: info
+role: question
+duration_s: 15
+products: []
+setting_en: "A sunny apartment balcony shelf in the morning with three small potted houseplants in plain terracotta pots."
+beats:
+  - start_s: 0
+    end_s: 3
+    visual_ko: "축 늘어진 화분의 잎을 손가락이 살짝 들어 올렸다 놓는다."
+    visual_en: "Extreme close-up of a fingertip gently lifting one drooping green leaf of a potted plant and letting it fall back"
+    camera_en: "macro shot, fast push-in"
+    narration_ko: "화분 물, 언제 줘야 할까"
+    caption_ko: "물, 언제 줄까?"
+  - start_s: 3
+    end_s: 9
+    visual_ko: "선반 위 화분 셋. 가운데 화분은 잎이 처져 있고 받침에 물이 고여 있다."
+    visual_en: "Three terracotta pots in a row on the shelf, the middle plant with drooping leaves and a saucer full of standing water under it"
+    camera_en: "slow lateral slide"
+    narration_ko: "매일 조금씩 줬는데 잎이 처진다."
+    caption_ko: "매일 줬는데?"
+  - start_s: 9
+    end_s: 15
+    visual_ko: "손이 작은 물뿌리개를 선반에 내려놓는다."
+    visual_en: "A hand sets a small metal watering can down on the shelf next to the pots and lets go of it"
+    camera_en: "static medium close-up"
+    narration_ko: "날짜가 아니라 흙을 보면 된다."
+    caption_ko: "날짜 말고 흙"
+audio_en: "Quiet morning balcony ambience, distant birds, a soft metallic clink as the watering can is set down."

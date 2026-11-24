@@ -90,6 +90,8 @@ def compile_scene(
                     f"이유: {dont.reason}")
 
     shot = production_spec["shot"]
+    fmt = production_spec.get("formats", {}).get(scene.format, {})      # 형식이 분위기와 제외 지시를 따로 정할 수 있다
+    style_en = fmt.get("style_en", shot["style_en"])
     narration_cfg = production_spec.get("narration", {})
     mode = narration_cfg.get("mode", "tts")
     lang = LANG_NAMES.get(narration_cfg.get("language", "ko"), "Korean")
@@ -97,7 +99,7 @@ def compile_scene(
     orientation = "Vertical 9:16" if scene.aspect_ratio == "9:16" else "Horizontal 16:9"
 
     lines: list[str] = [
-        f"{orientation} video, {scene.duration_s} seconds, one continuous scene. {shot['style_en']}.",
+        f"{orientation} video, {scene.duration_s} seconds, one continuous scene. {style_en}.",
         f"Setting: {scene.setting_en}",
     ]
     if products:
@@ -122,7 +124,7 @@ def compile_scene(
     if scene.audio_en:
         lines.append(f"Audio: {scene.audio_en}")
 
-    exclusions = list(production_spec.get("exclusions_en", [])) + list(scene.exclusions_en)
+    exclusions = list(fmt.get("exclusions_en", production_spec.get("exclusions_en", []))) + list(scene.exclusions_en)
     if mode == "tts":
         exclusions.append("No speech, narration or voice-over")
     if exclusions:

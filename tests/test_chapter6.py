@@ -214,6 +214,7 @@ def test_brief_는_초안을_따로_적고_저장본은_건드리지_않는다(p
                      "--products", "moalab_aqua_serum", "--owner-confirmed"])
     printed = capsys.readouterr().out
     assert code == 0 and "확인할 것 1개" in printed and "요점 1: 인용이 원문에 없다" in printed
+    assert "제목과 약속은 프로그램이 대조하지 않는 칸이다" in printed          # 대조하지 않는 칸은 늘 알린다
     doc = authoring.draft_brief_doc(work, "product_intro")
     assert doc["owner_confirmed"] is False and doc["draft"]["check"] == ["요점 1: 인용이 원문에 없다 — “피부가 사막처럼 마른다”"]
     assert (work / "source_briefs" / "product_intro.yaml").read_text(encoding="utf-8") == saved
@@ -259,3 +260,40 @@ def test_콘솔의_초안_실행_인자():
         m.brief_runs("product_intro", {**data, "owner_confirmed": False})
     assert m.script_runs("product_intro", dry_run=False) == [["script", "--episode", "product_intro"]]
     assert 0 < m.draft_cost(1000) < 0.1
+
+
+# ---------------------------------------------------------------- 제품이 없는 편
+def test_제품이_없는_견본_편도_검사와_컴파일을_지난다(spec):
+    from ass.production.grammar import check_grammar
+    from ass.production.scene_compiler import compile_scene
+    from ass.production.scene_spec import check_episode, load_scene
+
+    bible = load_product_bible(SAMPLE_DIR / "product_bible.yaml")
+    scenes = [load_scene(p) for p in sorted((SAMPLE_DIR / "episodes" / "watering_plants").glob("scene_*.yaml"))]
+    assert [s.role for s in scenes] == ["question", "methods", "wrap_up"] and all(not s.products for s in scenes)
+    assert check_episode(scenes, spec) == [] and check_grammar(scenes, spec) == []
+    prompt = compile_scene(scenes[1], bible, spec).prompt
+    assert "Products" not in prompt and "product" not in prompt.lower()      # 제품 영상의 말투가 섞이지 않는다
+    assert "Clean realistic everyday video" in prompt and "No human faces" in prompt
+
+
+def test_형식이_따로_정하지_않으면_분위기와_제외_지시는_그대로다(spec):
+    from ass.production.scene_compiler import compile_scene
+    from ass.production.scene_spec import load_scene
+
+    bible = load_product_bible(SAMPLE_DIR / "product_bible.yaml")
+    scene = load_scene(SAMPLE_DIR / "episodes" / "product_intro" / "scene_02_solution.yaml")
+    compiled = compile_scene(scene, bible, spec)
+    assert "Clean realistic product video" in compiled.prompt and "(the product label itself stays)" in compiled.prompt
+    # 4장에서 영상을 만든 프롬프트와 한 글자도 달라지지 않아야 가져오기(ass reuse)가 계속 맞는다
+    assert compiled.prompt_sha256 == "b49ae43bf8bbc5ae2521708f6b5cf8007e5fab861cf325a1c1adcc3ae99f5a54"
+
+
+def test_응답의_usage_에서_토큰을_꺼내_다시_어림한다():
+    from ass.guards.cost_guard import estimate_token_cost
+
+    usage = {"total_input_tokens": 691, "total_output_tokens": 247, "total_thought_tokens": 910, "total_tokens": 1848}
+    tokens = text_client.token_counts(usage)             # 2026-11-24 첫 실제 호출의 값
+    assert tokens == {"input": 691, "output": 247, "thought": 910}
+    assert estimate_token_cost(tokens, load_policy("models").data) == 0.0097
+    assert text_client.token_counts(None) is None and text_client.token_counts({"total_tokens": 12}) is None

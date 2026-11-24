@@ -104,6 +104,11 @@ def split_ids(text: str) -> list[str]:
     return [part.strip() for part in re.split(r"[,\s]+", text or "") if part.strip()]
 
 
+def split_evidence(text: str) -> list[str]:
+    """근거 칸. 쉼표로만 나눈다. 제품이 없는 편은 출처를 글로 적으므로 띄어쓰기에서 나누면 안 된다."""
+    return [part.strip() for part in (text or "").split(",") if part.strip()]
+
+
 def format_facts(facts: list[dict[str, Any]]) -> str:
     return "\n".join(f"{f['id']} | {f['text_ko']} | {f['source']}" for f in facts)
 
@@ -207,6 +212,11 @@ def save_brief(project_dir: Path, episode: str, data: dict[str, Any], source_tex
             raise InputError(f"{label}을(를) 적는다")
     if not points:
         raise InputError("요점을 하나 이상 적는다 (셋까지)")
+    if data.get("source_type") == "idea":        # 원문이 한 줄뿐이다. 요점이 어디서 나온 말인지 적어야 한다
+        bare = [str(n) for n, p in enumerate(points, 1) if not p.get("evidence")]
+        if bare:
+            raise InputError(f"요점 {', '.join(bare)}의 근거가 비어 있다. 아이디어 한 줄에서 시작한 편은 요점마다 "
+                             "근거(제품 사실의 id, 또는 확인한 자료와 날짜)를 적는다")
     try:
         brief = SourceBrief.model_validate(body)
     except ValidationError as exc:
@@ -350,6 +360,61 @@ def sample_brief(episode: str, sample_dir: Path = SAMPLE_DIR) -> dict[str, Any]:
     doc = load_yaml(sample_dir / "source_briefs" / f"{SAMPLE_BRIEF}.yaml")
     doc["brief_id"] = episode
     return doc
+
+
+IDEA_EPISODE = "fridge_smell"
+IDEA_TEXT = "자취방 냉장고 냄새를 없애는 방법 세 가지"
+
+
+def sample_idea_brief() -> dict[str, Any]:
+    """아이디어 한 줄에서 시작하는 견본 (6.2절).
+
+    요점 셋은 저자가 아래 자료에서 확인해 적은 것이다 (2026-11-24, fsis.usda.gov 의 같은 제목 쪽).
+    근거 칸은 쉼표로 나뉘므로 출처에 쉼표를 쓰지 않는다."""
+    source = "미국 농무부 FSIS 자료 ‘Removing Odors from Refrigerators and Freezers’ (2026-11-24 확인)"
+    return {"brief_id": IDEA_EPISODE, "source_type": "idea", "origin": None, "owner_confirmed": False,
+            "format": "info", "title_ko": "냉장고 냄새 없애는 법 세 가지",
+            "promise_ko": "자취방 냉장고 냄새를 없애는 방법 세 가지를 알려 준다", "products": [],
+            "key_points": [
+                {"text_ko": "상했거나 의심스러운 음식부터 꺼내 버린다", "evidence": [source]},
+                {"text_ko": "선반과 서랍은 빼서 씻고 안쪽은 베이킹소다를 푼 따뜻한 물로 닦는다", "evidence": [source]},
+                {"text_ko": "그래도 남으면 베이킹소다나 새 커피 가루를 넓은 그릇에 담아 넣어 둔다", "evidence": [source]}]}
+
+
+COMPARE_EPISODE = "sunscreen_compare"
+COMPARE_TEXT = "젤 선크림과 크림 선크림을 용량과 제형, 같은 두 기준으로 나란히 견준다"
+INFO_EPISODE = "watering_plants"
+
+
+def sample_for(fmt: str, source_type: str, sample_dir: Path = SAMPLE_DIR) -> tuple[str, dict[str, Any], str]:
+    """형식에 맞는 소재 견본: (편 이름, 소재 요약, 원문 칸에 넣을 글). 정보 전달은 소재의 종류도 따른다.
+
+    제품 설명 → 수분 세럼 (본인 블로그 글) · 제품 비교 → 젤 선크림과 크림 선크림 (아이디어 한 줄)
+    정보 전달 → 화분에 물 주는 법 (본인 블로그 글), 아이디어 한 줄이면 냉장고 냄새"""
+    if fmt == "comparison":
+        return COMPARE_EPISODE, load_yaml(sample_dir / "source_briefs" / f"{COMPARE_EPISODE}.yaml"), COMPARE_TEXT
+    if fmt == "info" and source_type == "idea":
+        return IDEA_EPISODE, sample_idea_brief(), IDEA_TEXT
+    if fmt == "info":
+        return (INFO_EPISODE, load_yaml(sample_dir / "source_briefs" / f"{INFO_EPISODE}.yaml"),
+                source_text(sample_dir, INFO_EPISODE).strip())
+    return SAMPLE_EPISODE, sample_brief(SAMPLE_EPISODE, sample_dir), source_text(sample_dir, SAMPLE_EPISODE).strip()
+
+
+def sample_texts(sample_dir: Path = SAMPLE_DIR) -> set[str]:
+    """견본이 원문 칸에 넣는 글 전부. 원문 칸의 글이 이 가운데 하나면 견본이 바꿔 넣어도 된다."""
+    return {COMPARE_TEXT, IDEA_TEXT, source_text(sample_dir, INFO_EPISODE).strip(),
+            source_text(sample_dir, SAMPLE_EPISODE).strip()}
+
+
+def sample_scene_for(project_dir: Path, episode: str, number: int, sample_dir: Path = SAMPLE_DIR) -> dict[str, Any] | None:
+    """이 편에 맞는 장면 견본. 견본에 같은 이름의 편이 있으면 그것, 제품 설명 편이면 수분 세럼, 없으면 None."""
+    if episode in episode_ids(sample_dir):
+        return scene_doc(sample_dir, episode, number)
+    brief = brief_doc(project_dir, episode)
+    if brief is None or brief.get("format") == "product_intro":
+        return sample_scene(episode, number, sample_dir)
+    return None
 
 
 def sample_scene(episode: str, number: int, sample_dir: Path = SAMPLE_DIR) -> dict[str, Any]:

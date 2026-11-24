@@ -55,6 +55,18 @@ def estimate_text_cost(input_chars: int, models_config: dict[str, Any], output_t
     return round(input_chars * float(price_in) / 1e6 + output_tokens * float(price_out) / 1e6, 4)
 
 
+def estimate_token_cost(tokens: dict[str, int], models_config: dict[str, Any]) -> float:
+    """응답이 알려 준 토큰 수로 다시 어림한 값(USD). 사고 토큰을 출력 값으로 친다.
+
+    사고 토큰이 출력 단가로 청구되는지, 단가가 맞는지는 확인하지 못했다. 실제 청구액은 결제 화면에서 본다."""
+    text = models_config.get("text") or {}
+    price_in, price_out = text.get("price_usd_per_1m_input_tokens"), text.get("price_usd_per_1m_output_tokens")
+    if price_in is None or price_out is None:
+        raise UnknownPrice("글 모델의 단가가 없다. configs/models.yaml 의 text 를 확인한다")
+    return round(tokens["input"] * float(price_in) / 1e6
+                 + (tokens["output"] + tokens.get("thought", 0)) * float(price_out) / 1e6, 4)
+
+
 class BudgetGuard:
     """누적 추정 비용이 상한을 넘지 않게 지킨다."""
 

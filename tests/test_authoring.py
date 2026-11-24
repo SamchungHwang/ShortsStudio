@@ -147,7 +147,7 @@ def test_소재_요약이_막는_것(project):
         authoring.save_brief(project, "ep", {**good, "key_points": [{"text_ko": " "}]})
     with pytest.raises(InputError, match="제목"):
         authoring.save_brief(project, "ep", {**good, "title_ko": ""})
-    idea = {**good, "source_type": "idea", "origin": "", "key_points": good["key_points"][:1]}
+    idea = {**good, "source_type": "idea", "origin": "", "key_points": good["key_points"][1:2]}
     assert authoring.save_brief(project, "ep", idea).origin is None                        # 아이디어는 출처가 없어도 된다
 
 

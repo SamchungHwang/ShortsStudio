@@ -19,6 +19,9 @@ from ass.production.grammar import check_grammar
 from ass.production.product_bible import Product, find_dont_say, squeeze
 from ass.production.scene_spec import SceneSpec, check_episode
 
+# 프로그램이 대조하지 않는 칸. 초안을 보여 줄 때마다 함께 알린다 (E15 2회: 약속에 원문에 없는 효능이 들어왔다)
+UNCHECKED_NOTE = "알림(오류가 아니다): 제목과 약속은 프로그램이 대조하지 않는 칸이다. 원문에 없는 효능이나 결과를 약속하고 있지 않은지 직접 읽는다."
+
 SOURCE_NAMES = {"idea": "아이디어 한 줄", "own_blog": "본인 블로그 글", "own_video_script": "본인 영상의 대본"}
 
 
@@ -74,7 +77,7 @@ def script_prompt(policy: dict[str, Any], *, brief: dict[str, Any], format_spec:
         f"  내레이션은 공백을 빼고 1초에 {grammar.get('narration_max_chars_per_s', 7)}자를 넘지 않는다.\n"
         f"  자막은 공백을 빼고 {caption.get('max_chars', 12)}자를 넘지 않는다.\n"
         f"  마지막 장면의 마지막 구간에는 다음 행동을 말하는 내레이션이나 자막이 있다.\n"
-        f"  화면의 분위기: {production_spec['shot']['style_en']}\n\n"
+        f"  화면의 분위기: {format_spec.get('style_en', production_spec['shot']['style_en'])}\n\n"
         f"답의 모양:\n{policy['script']['output_shape'].strip()}"
     )
 

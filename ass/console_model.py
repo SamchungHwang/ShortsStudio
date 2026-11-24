@@ -189,8 +189,9 @@ def list_outputs(output_dir: Path = OUTPUT_DIR, limit: int = 200,
                  example_dir: Path | None = None) -> list[tuple[str, str, str]]:
     """산출물 목록: (산출물 폴더 기준 상대 경로, 수정 시각, 크기). 최근 것부터.
 
-    사람이 고른 레퍼런스(assets/products/<제품>/reference/ 와 reference_manifest.json)는
-    산출물 폴더 밖에 있지만 실행이 만든 것이므로 함께 보여 준다. 경로가 ../ 로 시작한다."""
+    사람이 고른 레퍼런스(assets/products/<제품>/reference/ 와 reference_manifest.json)와
+    글 모델의 초안(drafts/<편>/)은 산출물 폴더 밖에 있지만 실행이 만든 것이므로 함께 보여 준다.
+    경로가 ../ 로 시작한다."""
     import os
 
     if example_dir is None and output_dir == OUTPUT_DIR:
@@ -200,6 +201,9 @@ def list_outputs(output_dir: Path = OUTPUT_DIR, limit: int = 200,
     if products and products.is_dir():
         files += [p for p in products.glob("*/reference_manifest.json") if p.is_file()]
         files += [p for p in products.glob("*/reference/*") if p.is_file()]
+    drafts = (example_dir / "drafts") if example_dir else None        # 글 모델이 만든 초안 (6장). 저장본이 아니다
+    if drafts and drafts.is_dir():
+        files += [p for p in drafts.rglob("*.yaml") if p.is_file()]
     files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     rows = []
     for p in files[:limit]:

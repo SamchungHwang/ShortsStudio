@@ -1,0 +1,16 @@
+# 소재 요약 — 제품이 없는 정보 전달 편. 본인 블로그 글에서 요점 셋을 골랐다 (6.2절)
+brief_id: watering_plants
+source_type: own_blog
+origin: "https://example.com/blog/watering-plants"      # 지어낸 주소. 이 예제를 위해 지어낸 글이다 (sources/watering_plants.txt)
+owner_confirmed: true
+format: info
+title_ko: "화분 물, 날짜 말고 흙으로"
+promise_ko: "화분에 물을 언제 얼마나 줄지 세 단계로 알려 준다"
+products: []
+key_points:
+  - text_ko: "물을 주기 전에 손가락 두 마디를 흙에 넣어 본다. 축축하면 주지 않는다"
+    evidence: ["본인 블로그 글 2문단"]
+  - text_ko: "줄 때는 화분 밑의 구멍으로 흘러나올 때까지 준다"
+    evidence: ["본인 블로그 글 3문단"]
+  - text_ko: "받침에 고인 물은 따라 버린다"
+    evidence: ["본인 블로그 글 4문단"]

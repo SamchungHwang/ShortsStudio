@@ -1,0 +1,30 @@
+scene_id: plant_s03
+episode_id: watering_plants
+format: info
+role: wrap_up
+duration_s: 15
+products: []
+setting_en: "The same sunny balcony shelf with three small potted houseplants in plain terracotta pots, now in warmer late-morning light."
+beats:
+  - start_s: 0
+    end_s: 5
+    visual_ko: "선반 위 화분 셋이 나란히 놓여 있다. 받침은 비어 있고 잎이 서 있다."
+    visual_en: "The three pots stand in a row on the shelf with empty saucers and upright green leaves"
+    camera_en: "slow push-in"
+    narration_ko: "흙을 보고, 흠뻑 주고, 고인 물은 버린다."
+    caption_ko: "보고, 흠뻑, 버리기"
+  - start_s: 5
+    end_s: 10
+    visual_ko: "손가락이 옆 화분의 흙을 다시 짚어 보고, 물을 주지 않고 손을 뗀다."
+    visual_en: "A finger touches the soil of the next pot, pauses, and moves away without watering it"
+    camera_en: "close-up from the side, static"
+    narration_ko: "축축하면 그날은 주지 않는다."
+    caption_ko: "축축하면 쉬기"
+  - start_s: 10
+    end_s: 15
+    visual_ko: "물뿌리개가 화분 옆에 놓인 마지막 화면. 햇빛이 잎을 비춘다."
+    visual_en: "Final shot of the watering can resting beside the three pots as sunlight falls across the leaves"
+    camera_en: "static, eye-level"
+    narration_ko: "오늘 집에 가면 흙부터 만져 보자."
+    caption_ko: "오늘, 흙부터"
+audio_en: "Quiet balcony ambience, distant birds, leaves rustling lightly."

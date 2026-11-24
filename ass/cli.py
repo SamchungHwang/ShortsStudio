@@ -30,7 +30,7 @@ import sys
 from datetime import datetime
 
 from ass import __version__
-from ass.guards.cost_guard import BudgetGuard, UnknownPrice, estimate_image_cost, estimate_text_cost, estimate_video_cost
+from ass.guards.cost_guard import BudgetGuard, UnknownPrice, estimate_image_cost, estimate_text_cost, estimate_token_cost, estimate_video_cost
 from ass.policy import load_policy
 from ass import ledger
 from ass.production import (assembler, bible_lint, drafting, image_client, omni_client, reference_sheet, retry, reuse,
@@ -545,6 +545,11 @@ def _draft_call(kind: str, episode: str, prompt: str, system: str, policy, model
         return None, record, 1
     record.save(record_path)
     print(f"받았다 ({result.elapsed_s:.1f}초). 받은 글: {raw_path}")
+    tokens = text_client.token_counts(result.usage)
+    if tokens:
+        again = estimate_token_cost(tokens, models.data)
+        print(f"쓴 토큰: 입력 {tokens['input']} · 출력 {tokens['output']} · 사고 {tokens['thought']} "
+              f"| 토큰으로 다시 어림 ${again:.4f} (사고 토큰도 출력 값으로 쳤다. 단가는 확인하지 못한 값이다)")
     return doc, record, 0
 
 
@@ -602,6 +607,7 @@ def cmd_brief(args: argparse.Namespace) -> int:
         print(f"요점 {n}: {point['text_ko']}")
         print(f"    인용: {point.get('quote', '—')} · 근거: {', '.join(point.get('evidence', [])) or '—'}")
     _print_check(issues)
+    print(drafting.UNCHECKED_NOTE)
     print(f"초안: {target}\n다음: [입력] → ② 소재 입력 → [초안 불러오기]. 고친 뒤 저장한다.")
     return 0
 

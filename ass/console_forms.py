@@ -241,7 +241,7 @@ class BriefForm:
         self.kinds = {v: k for k, v in authoring.SOURCE_TYPES.items()}
         self.episode = tk.StringVar(value=authoring.SAMPLE_EPISODE)
         self.format = tk.StringVar(value=next(iter(self.formats)))
-        self.kind = tk.StringVar(value=authoring.SOURCE_TYPES["idea"])
+        self.kind = tk.StringVar(value=authoring.SOURCE_TYPES["own_blog"])   # 아이디어 한 줄은 골라야 한다. 견본이 종류를 따른다
         self.origin, self.title, self.promise, self.products = (tk.StringVar() for _ in range(4))
         self.owner = tk.BooleanVar(value=False)
         self.owner_hint = tk.StringVar()
@@ -272,7 +272,7 @@ class BriefForm:
         cell = line(1, "형식")
         ttk.Combobox(cell, textvariable=self.format, values=list(self.formats), state="readonly", width=14).pack(side="left", **PAD)
         ttk.Button(cell, text="견본으로 채우기", command=self.fill_sample).pack(side="left", **PAD)
-        ttk.Label(cell, text="책의 수분 세럼 편 값이 칸에 들어갑니다", foreground=GREY).pack(side="left")
+        ttk.Label(cell, text="고른 형식의 견본이 들어갑니다. 형식을 먼저 고르세요", foreground=GREY).pack(side="left")
         cell = line(2, "소재의 종류")
         ttk.Combobox(cell, textvariable=self.kind, values=list(self.kinds), state="readonly", width=20).pack(side="left", **PAD)
         ttk.Label(cell, text="출처").pack(side="left")
@@ -306,10 +306,16 @@ class BriefForm:
         ttk.Label(head, text="블로그 글, 대본, 아이디어 한 줄. 손으로 채울 때는 비워도 됩니다",
                   foreground=GREY).pack(side="left", padx=6)
         ttk.Button(head, text="파일에서 불러오기…", command=self.load_source_file).pack(side="right", padx=6)
-        ttk.Button(head, text="초안 불러오기", command=self.load_draft).pack(side="right", padx=6)
-        ttk.Button(head, text="초안 만들기 (ass brief)", command=self.make_draft).pack(side="right", padx=6)
         self.source = TextField(cell, 7)
         self.source.widget.pack(fill="both", expand=True, padx=6, pady=2)
+        draft = ttk.Frame(cell)                    # 초안: 원문 아래. 요청만 확인 칸은 본 화면의 칸과 같은 것이다
+        draft.pack(fill="x", pady=(2, 0))
+        ttk.Label(draft, text="원문에서 초안").pack(side="left", padx=6)
+        ttk.Checkbutton(draft, text="호출하지 않고 요청만 확인 (비용 없음)",
+                        variable=self.app.dry_run).pack(side="left", padx=6)
+        ttk.Button(draft, text="초안 만들기 (ass brief)", command=self.make_draft).pack(side="left", padx=6)
+        ttk.Button(draft, text="초안 불러오기", command=self.load_draft).pack(side="left", padx=6)
+        ttk.Label(draft, text="체크가 있으면 보내는 글만 보여 줍니다", foreground=GREY).pack(side="left", padx=6)
 
         bar = ttk.Frame(win, padding=10)
         bar.pack(fill="x")
@@ -342,13 +348,43 @@ class BriefForm:
                 self.source.set(source.read_text(encoding="utf-8"))
 
     def fill_sample(self) -> None:
-        doc = authoring.sample_brief(self.episode.get().strip() or authoring.SAMPLE_EPISODE)
-        doc["owner_confirmed"] = False          # 이 표시는 사람이 직접 한다. 견본이 대신 하지 않는다
+        """고른 형식에 맞는 견본을 칸에 넣는다. 정보 전달은 소재의 종류(아이디어 한 줄인가)도 따른다."""
+        fmt, kind = self.formats[self.format.get()], self.kinds[self.kind.get()]
+        episode, doc, text = authoring.sample_for(fmt, kind)
+        named = {authoring.SAMPLE_EPISODE, authoring.COMPARE_EPISODE, authoring.INFO_EPISODE, authoring.IDEA_EPISODE}
+        current_episode = self.episode.get().strip()
+        if fmt != "product_intro" or current_episode in named or not current_episode:
+            self.episode.set(episode)               # 편 이름도 바꾼다. 다른 편의 소재 요약을 덮어쓰지 않게
+        doc["brief_id"] = self.episode.get().strip()
+        doc["owner_confirmed"] = False              # 이 표시는 사람이 직접 한다. 견본이 대신 하지 않는다
         self.show(doc)
         self.owner_hint.set("← 이 칸은 견본이 채우지 않습니다. 직접 눌러 표시하세요")
-        sample_text = authoring.source_text(settings.SAMPLE_DIR, authoring.SAMPLE_EPISODE)
-        if self.source is not None and sample_text and not self.source.get().strip():
-            self.source.set(sample_text)        # 견본의 블로그 글. 6장의 초안 만들기에 쓴다
+        if self.source is not None:
+            current = self.source.get().strip()
+            if not current or current in authoring.sample_texts():
+                self.source.set(text)               # 내가 붙여 넣은 글은 바꾸지 않는다
+        if fmt == "comparison":
+            missing = [p for p in doc["products"] if p not in authoring.product_ids(self.project_dir)]
+            messagebox.showinfo(
+                "제품 비교 견본을 넣었습니다",
+                f"편 이름: {episode}\n\n요점의 근거는 두 제품의 사실 id 입니다. 타사 제품(하루온 크림 선크림)은 평가하지 않고, "
+                "이긴 쪽을 정하지 않습니다.\n\n"
+                + ("저장하려면 먼저 [입력] → ① 제품 등록에서 견본을 골라 저장하세요:\n   " + ", ".join(missing)
+                   if missing else "두 제품이 등록되어 있습니다.")
+                + "\n\n장면과 영상은 7장에서 만듭니다.", parent=self.win)
+        elif fmt == "info" and kind == "idea":
+            messagebox.showinfo(
+                "아이디어 한 줄 견본을 넣었습니다",
+                f"편 이름: {episode}\n\n요점 셋과 근거도 채웠습니다. 저자가 근거 칸의 자료에서 확인해 적은 것입니다.\n\n"
+                "내 아이디어로 할 때는 원문 칸에 한 줄을 적고 요점을 비운 뒤 [초안 만들기] → [초안 불러오기]로 받으세요.\n"
+                "받은 요점은 모델이 채운 것이니 맞는지 확인하고 근거 칸에 출처를 적습니다. 근거가 비면 저장되지 않습니다.",
+                parent=self.win)
+        elif fmt == "info":
+            messagebox.showinfo(
+                "정보 전달 견본을 넣었습니다",
+                f"편 이름: {episode} (화분에 물 주는 법)\n\n제품이 없는 편입니다. 근거 칸에는 사실 id 가 아니라 "
+                "출처를 글로 적었습니다.\n소재의 종류를 ‘아이디어 한 줄’로 바꾸고 다시 누르면 냉장고 냄새 편이 들어옵니다.",
+                parent=self.win)
 
     def make_draft(self) -> None:
         """원문에서 소재 요약의 초안을 만든다 (ass brief). 요청만 확인 칸의 체크를 따른다. 칸은 바뀌지 않는다."""
@@ -388,8 +424,11 @@ class BriefForm:
         check = (doc.get("draft") or {}).get("check") or []
         messagebox.showinfo(
             "초안을 넣었습니다",
-            ("확인할 것 " + str(len(check)) + "개:\n\n" + "\n".join(f"· {x}" for x in check) if check
-             else "프로그램이 찾은 것은 없습니다.") + "\n\n원문과 견주어 읽고 고친 뒤 [저장]을 누르세요. 저장해야 쓰입니다.",
+            "초안이 칸에 들어왔습니다. 오류가 아니라 읽을 곳을 알려 드리는 안내입니다.\n\n"
+            + ("■ 요점: 확인할 것 " + str(len(check)) + "개\n" + "\n".join(f"   · {x}" for x in check) if check
+               else "■ 요점: 원문과 대조했고 걸린 것이 없습니다.")
+            + "\n\n■ 제목과 약속: 프로그램이 대조하지 않는 칸입니다.\n   원문에 없는 효능이나 결과를 약속하고 있지 않은지 직접 읽어 보세요."
+            + "\n\n고친 뒤 [저장]을 누르세요. 저장해야 쓰입니다.",
             parent=self.win)
 
     def load_source_file(self) -> None:
@@ -411,7 +450,7 @@ class BriefForm:
             "owner_confirmed": bool(self.owner.get()), "format": self.formats[self.format.get()],
             "title_ko": self.title.get().strip(), "promise_ko": self.promise.get().strip(),
             "products": authoring.split_ids(self.products.get()),
-            "key_points": [{"text_ko": t.get().strip(), "evidence": authoring.split_ids(e.get())} for t, e in self.points],
+            "key_points": [{"text_ko": t.get().strip(), "evidence": authoring.split_evidence(e.get())} for t, e in self.points],
         }
 
     def save(self, next_step: bool = False) -> bool:
@@ -596,7 +635,13 @@ class SceneForm:
         self.show(doc)
 
     def fill_sample(self) -> None:
-        self.show(authoring.sample_scene(self.episode.get().strip(), int(self.number.get())))
+        doc = authoring.sample_scene_for(self.project_dir, self.episode.get().strip(), int(self.number.get()))
+        if doc is None:
+            messagebox.showinfo("이 편의 장면 견본은 없습니다",
+                                "장면 견본이 있는 편은 product_intro(수분 세럼)와 watering_plants(화분에 물 주는 법)입니다.\n"
+                                "그 밖의 편은 [입력] → “장면 초안 만들기”로 초안을 받거나 직접 적으세요.", parent=self.win)
+            return
+        self.show(doc)
 
     def load_draft(self) -> None:
         """ass script 가 만든 이 장면의 초안을 칸에 넣는다. 저장은 사람이 누른다."""

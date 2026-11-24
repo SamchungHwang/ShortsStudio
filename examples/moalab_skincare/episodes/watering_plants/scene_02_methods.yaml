@@ -1,0 +1,30 @@
+scene_id: plant_s02
+episode_id: watering_plants
+format: info
+role: methods
+duration_s: 15
+products: []
+setting_en: "The same sunny balcony shelf with three small potted houseplants in plain terracotta pots."
+beats:
+  - start_s: 0
+    end_s: 5
+    visual_ko: "손가락을 화분의 흙에 두 마디쯤 찔러 넣었다가 뺀다. 손끝에 마른 흙이 묻어 있다."
+    visual_en: "A finger pushes about two knuckles deep into the soil of one pot and comes back out with dry crumbly soil on the fingertip"
+    camera_en: "close-up from the side, static"
+    narration_ko: "하나. 손가락 두 마디를 흙에 넣어 본다."
+    caption_ko: "① 손가락 두 마디"
+  - start_s: 5
+    end_s: 10
+    visual_ko: "물뿌리개로 흙에 천천히 물을 붓는다. 화분 밑의 구멍으로 물이 흘러나와 받침에 고인다."
+    visual_en: "Water is poured slowly from the watering can onto the soil until it runs out of the drainage hole at the bottom of the pot into the saucer"
+    camera_en: "low angle close-up on the bottom of the pot"
+    narration_ko: "둘. 말랐으면 밑으로 흘러나올 때까지 준다."
+    caption_ko: "② 흘러나올 때까지"
+  - start_s: 10
+    end_s: 15
+    visual_ko: "손이 화분을 들어 올리고, 다른 손이 받침의 물을 옆으로 따라 버린다."
+    visual_en: "One hand lifts the pot while the other hand tips the saucer and pours the standing water away to the side"
+    camera_en: "static medium close-up"
+    narration_ko: "셋. 받침에 고인 물은 버린다."
+    caption_ko: "③ 받침 물 버리기"
+audio_en: "Quiet balcony ambience, soft soil crunch, water trickling, a few drops falling into the saucer."

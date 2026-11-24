@@ -10,7 +10,9 @@
 
 공식 문서(Interactions API 안내)에서 확인한 것: model, input, system_instruction, generation_config, output_text.
 확인하지 못한 것: JSON 스키마를 강제하는 설정값의 이름. 그래서 JSON 을 지시문으로 요청하고, 받은 글을 직접 읽어
-pydantic 으로 검사한다. 사용 토큰 수를 알려 주는 필드의 이름도 확인하지 못했다. 있으면 그대로 기록에 남긴다.
+pydantic 으로 검사한다.
+실제 응답으로 확인한 것(2026-11-24): 사용 토큰 수는 interaction.usage 에 온다. total_input_tokens,
+total_output_tokens, total_thought_tokens, total_tokens. 사고 토큰은 출력 토큰과 따로 센다.
 """
 from __future__ import annotations
 
@@ -25,7 +27,7 @@ class TextResult(BaseModel):
     text: str
     interaction_id: str | None = None
     elapsed_s: float
-    usage: dict[str, Any] | None = None       # 응답에 usage 가 있으면 그대로. 필드 이름은 확인하지 못했다
+    usage: dict[str, Any] | None = None       # 응답의 usage 그대로
 
 
 class DraftParseError(ValueError):
@@ -75,3 +77,11 @@ def parse_json(text: str) -> dict[str, Any]:
     if not isinstance(doc, dict):
         raise DraftParseError("답이 JSON 객체가 아니다")
     return doc
+
+
+def token_counts(usage: dict[str, Any] | None) -> dict[str, int] | None:
+    """usage 에서 입력, 출력, 사고 토큰 수를 꺼낸다. 필드가 없으면 None."""
+    if not usage or "total_input_tokens" not in usage or "total_output_tokens" not in usage:
+        return None
+    return {"input": int(usage["total_input_tokens"]), "output": int(usage["total_output_tokens"]),
+            "thought": int(usage.get("total_thought_tokens") or 0)}

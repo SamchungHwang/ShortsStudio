@@ -1,19 +1,14 @@
-# 소재 요약 — 오후에 당기는 피부, 수분 세럼 하나로
+# 소재 요약 — 화분에 물을 주는 올바른 방법
 brief_id: product_intro
 source_type: own_blog
 origin: https://example.com/blog/aqua-serum
 owner_confirmed: true
 format: product_intro
-title_ko: 오후에 당기는 피부, 수분 세럼 하나로
-promise_ko: 수분 세럼이 어떤 제형이고 어떻게 쓰는지 45초 안에 알려 준다
+title_ko: 화분에 물을 주는 올바른 방법
+promise_ko: 화분의 흙 상태를 확인하고 물을 주는 방법을 알려 준다.
 products:
 - moalab_aqua_serum
 key_points:
-- text_ko: 오후가 되면 피부가 당기는 사람을 위한 제품이다
-- text_ko: 묽은 젤 제형이고 향이 없다
-  evidence:
-  - serum_texture
-  - serum_fragrance
-- text_ko: 세안 후 두세 방울을 덜어 가볍게 두드린다
-  evidence:
-  - serum_usage
+- text_ko: 매일 조금씩 물을 주면 화분 아래쪽 흙이 계속 젖어 있게 된다.
+- text_ko: 날짜를 세지 않고 손가락 두 마디를 넣어 흙의 건조 상태를 확인한다.
+- text_ko: 화분 밑의 구멍으로 물이 흘러나올 때까지 천천히 붓는다.

@@ -20,7 +20,7 @@ def test_every_workflow_command_has_a_note():
 
 
 def test_episode_list_and_summary():
-    assert model.list_episodes() == ["product_intro"]
+    assert model.list_episodes() == ["product_intro", "watering_plants"]
     summary = model.episode_summary("product_intro")
     assert "제품 설명 · 장면 3개 · 45초 · 초안 1회 추정 $3.15 (720p)" in summary
 
@@ -137,6 +137,9 @@ def test_산출물_목록에는_고른_레퍼런스와_기록도_나온다(tmp_p
     (base / "reference_manifest.json").write_text("{}", encoding="utf-8")
     (base / "photos").mkdir()
     (base / "photos" / "mine.jpg").write_bytes(b"3")          # 내가 넣은 사진은 산출물이 아니다
+    (project / "drafts" / "ep1").mkdir(parents=True)
+    (project / "drafts" / "ep1" / "brief.yaml").write_text("title_ko: x", encoding="utf-8")   # 글 모델의 초안 (6장)
     paths = {row[0] for row in model.list_outputs(out, example_dir=project)}
-    assert paths == {"sheets/a.jpg", "../assets/products/p1/reference/front.jpg", "../assets/products/p1/reference_manifest.json"}
+    assert paths == {"sheets/a.jpg", "../assets/products/p1/reference/front.jpg",
+                     "../assets/products/p1/reference_manifest.json", "../drafts/ep1/brief.yaml"}
     assert {row[0] for row in model.list_outputs(out)} == {"sheets/a.jpg"}
