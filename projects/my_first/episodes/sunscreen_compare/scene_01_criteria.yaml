@@ -1,0 +1,30 @@
+scene_id: sun_s01
+episode_id: sunscreen_compare
+format: comparison
+role: criteria
+duration_s: 15
+products: [moalab_gel_sunscreen, haruon_cream_sunscreen]
+setting_en: "A clean white tabletop by a window in soft daylight, plain light grey wall behind."
+beats:
+  - start_s: 0
+    end_s: 3
+    visual_ko: "흰 탁자 위에 선크림 튜브 둘이 나란히 놓여 있다."
+    visual_en: "Two sunscreen tubes stand side by side on the tabletop, the MOALAB Gel Sunscreen on the left and the HARUON Cream Sunscreen on the right"
+    camera_en: "fast push-in to a centered two-shot"
+    narration_ko: "선크림, 젤과 크림"
+    caption_ko: "젤 vs 크림"
+  - start_s: 3
+    end_s: 9
+    visual_ko: "손이 두 튜브를 조금 더 가까이 붙여 높이를 맞춘다."
+    visual_en: "A hand slides the two tubes a little closer together so that their bases line up"
+    camera_en: "static, eye-level"
+    narration_ko: "같은 기준 두 가지로 본다."
+    caption_ko: "기준은 두 가지"
+  - start_s: 9
+    end_s: 15
+    visual_ko: "두 튜브 앞에 빈 유리 접시 두 개가 놓인다."
+    visual_en: "Two small empty clear glass dishes are placed in front of the tubes, one in front of each"
+    camera_en: "slow tilt down to the dishes"
+    narration_ko: "용량, 그리고 제형."
+    caption_ko: "용량과 제형"
+audio_en: "Quiet room tone, a soft tap as each dish is set down."

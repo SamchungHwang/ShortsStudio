@@ -39,3 +39,48 @@ products:
       reason: 피부 자극 시험 자료가 없다
     - text_ko: 흡수가 빠르다
       reason: 흡수를 잰 자료가 없다. 제형은 말할 수 있어도 흡수는 말할 수 없다
+  moalab_gel_sunscreen:
+    brand: MOALAB
+    name_ko: 모아랩 젤 선크림
+    name_en: MOALAB Gel Sunscreen
+    appearance_en: a 50 ml slim white squeeze tube with a pale blue cap and a pale blue label reading MOALAB
+    appearance_ko: 50ml 가는 흰색 튜브. 하늘색 뚜껑, 하늘색 라벨에 MOALAB
+    label_text: MOALAB
+    is_own: true
+    facts:
+    - id: gel_sun_volume
+      text_ko: 용량 50ml
+      source: 가상 제품 설정
+    - id: gel_sun_texture
+      text_ko: 투명한 젤 제형
+      source: 가상 제품 설정
+    say:
+    - text_ko: 투명한 젤 제형
+      evidence:
+      - gel_sun_texture
+    dont_say:
+    - text_ko: 백탁이 없다
+      reason: 피부색과 바르는 양에 따라 다르다. 시험 자료가 없다
+    - text_ko: 자외선 차단 지수
+      reason: 차단 지수는 이 예제의 사실에 없다. 실제 제품에서는 표시된 값과 근거를 facts 에 먼저 적는다
+  haruon_cream_sunscreen:
+    brand: HARUON
+    name_ko: 하루온 크림 선크림
+    name_en: HARUON Cream Sunscreen
+    appearance_en: a 50 ml short beige squeeze tube with an orange cap and an orange label reading HARUON
+    appearance_ko: 50ml 짧은 베이지색 튜브. 주황색 뚜껑, 주황색 라벨에 HARUON
+    label_text: HARUON
+    is_own: false
+    facts:
+    - id: cream_sun_volume
+      text_ko: 용량 50ml
+      source: 가상 제품 설정
+    - id: cream_sun_texture
+      text_ko: 흰색 크림 제형
+      source: 가상 제품 설정
+    say: []
+    dont_say:
+    - text_ko: 답답하다
+      reason: 타사 제품의 사용감을 깎아내리는 표현이다
+    - text_ko: 끈적인다
+      reason: 타사 제품의 사용감을 깎아내리는 표현이다

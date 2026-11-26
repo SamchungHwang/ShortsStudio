@@ -1,0 +1,22 @@
+{
+  "product_id": "moalab_gel_sunscreen",
+  "version": "v001",
+  "mode": "text",
+  "views": [
+    "front",
+    "three_quarter",
+    "side",
+    "label",
+    "in_hand"
+  ],
+  "photos": [],
+  "appearance_en": "a 50 ml slim white squeeze tube with a pale blue cap and a pale blue label reading MOALAB",
+  "bible_version": "0.1",
+  "approved_by": null,
+  "created_at": "2026-11-26T15:15:21",
+  "estimated_cost_usd": 0.168,
+  "policy_hashes": {
+    "models": "4555ceffad38",
+    "reference_sheet": "717d5bc9cbbb"
+  }
+}

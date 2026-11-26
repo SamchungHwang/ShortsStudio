@@ -1,0 +1,35 @@
+{
+  "scene_id": "sun_s01",
+  "duration_s": 15,
+  "aspect_ratio": "9:16",
+  "prompt": "Vertical 9:16 video, 15 seconds, one continuous scene. Clean realistic product video, soft natural daylight, shallow depth of field, calm and minimal.\nSetting: A clean white tabletop by a window in soft daylight, plain light grey wall behind.\nProducts (keep shape, color and label exactly as described):\n- MOALAB Gel Sunscreen: a 50 ml slim white squeeze tube with a pale blue cap and a pale blue label reading MOALAB\n- HARUON Cream Sunscreen: a 50 ml short beige squeeze tube with an orange cap and an orange label reading HARUON\nAction:\n[0-3s] Two sunscreen tubes stand side by side on the tabletop, the MOALAB Gel Sunscreen on the left and the HARUON Cream Sunscreen on the right. Camera: fast push-in to a centered two-shot.\n[3-9s] A hand slides the two tubes a little closer together so that their bases line up. Camera: static, eye-level.\n[9-15s] Two small empty clear glass dishes are placed in front of the tubes, one in front of each. Camera: slow tilt down to the dishes.\nAudio: Quiet room tone, a soft tap as each dish is set down.\nConstraints: No human faces. No added text overlays, captions or subtitles (the product label itself stays). No background music. No speech, narration or voice-over.",
+  "prompt_sha256": "06151e5749c3a79dca5971971bdd22b119bf99538cae6e45a1c8aa6e0546d8d0",
+  "narration_mode": "tts",
+  "narration": [
+    {
+      "start_s": 0,
+      "end_s": 3,
+      "text": "선크림, 젤과 크림",
+      "caption": "젤 vs 크림",
+      "evidence": []
+    },
+    {
+      "start_s": 3,
+      "end_s": 9,
+      "text": "같은 기준 두 가지로 본다.",
+      "caption": "기준은 두 가지",
+      "evidence": []
+    },
+    {
+      "start_s": 9,
+      "end_s": 15,
+      "text": "용량, 그리고 제형.",
+      "caption": "용량과 제형",
+      "evidence": []
+    }
+  ],
+  "needs_human_approval": true,
+  "compiler_version": "0.2.0",
+  "lexicon_version": "2026-11-17-draft",
+  "product_bible_version": "0.1"
+}

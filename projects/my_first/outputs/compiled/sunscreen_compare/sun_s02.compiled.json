@@ -1,0 +1,42 @@
+{
+  "scene_id": "sun_s02",
+  "duration_s": 15,
+  "aspect_ratio": "9:16",
+  "prompt": "Vertical 9:16 video, 15 seconds, one continuous scene. Clean realistic product video, soft natural daylight, shallow depth of field, calm and minimal.\nSetting: The same clean white tabletop by a window in soft daylight, plain light grey wall behind.\nProducts (keep shape, color and label exactly as described):\n- MOALAB Gel Sunscreen: a 50 ml slim white squeeze tube with a pale blue cap and a pale blue label reading MOALAB\n- HARUON Cream Sunscreen: a 50 ml short beige squeeze tube with an orange cap and an orange label reading HARUON\nAction:\n[0-5s] The MOALAB Gel Sunscreen on the left and the HARUON Cream Sunscreen on the right stand side by side, both labels facing the camera. Camera: static centered two-shot.\n[5-10s] A hand squeezes a small amount of clear gel from the left tube onto the left glass dish. Camera: close-up on the left dish.\n[10-15s] A hand squeezes a small amount of white cream from the right tube onto the right glass dish. Camera: close-up on the right dish.\nAudio: Quiet room tone, two soft squeezes.\nConstraints: No human faces. No added text overlays, captions or subtitles (the product label itself stays). No background music. No speech, narration or voice-over.",
+  "prompt_sha256": "0ac08e67ebf905dc766155b98239bf0aad7825b8323285150d0d782fb687931b",
+  "narration_mode": "tts",
+  "narration": [
+    {
+      "start_s": 0,
+      "end_s": 5,
+      "text": "둘 다 용량은 50밀리리터.",
+      "caption": "둘 다 50ml",
+      "evidence": [
+        "gel_sun_volume",
+        "cream_sun_volume"
+      ]
+    },
+    {
+      "start_s": 5,
+      "end_s": 10,
+      "text": "젤 선크림은 투명한 젤.",
+      "caption": "투명한 젤",
+      "evidence": [
+        "gel_sun_texture"
+      ]
+    },
+    {
+      "start_s": 10,
+      "end_s": 15,
+      "text": "크림 선크림은 흰색 크림.",
+      "caption": "흰색 크림",
+      "evidence": [
+        "cream_sun_texture"
+      ]
+    }
+  ],
+  "needs_human_approval": true,
+  "compiler_version": "0.2.0",
+  "lexicon_version": "2026-11-17-draft",
+  "product_bible_version": "0.1"
+}

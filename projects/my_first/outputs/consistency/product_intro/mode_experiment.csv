@@ -1,0 +1,5 @@
+﻿scene_id,mode,run_id,images,elapsed_s,estimated_cost_usd,attempts,reused,video,shape,color,label,note
+serum_s01,text,20261121-102015,0,60.62,0.0,1,yes,serum_s01.20261121-102015.mp4,,,,
+serum_s02,reference,20261126-141614,3,63.96,1.05,1,,serum_s02.20261126-141614.mp4,,,,
+serum_s02,text,20261121-103642,0,62.78,0.0,1,yes,serum_s02.20261121-103642.mp4,,,,
+serum_s03,text,20261121-103830,0,63.58,0.0,1,yes,serum_s03.20261121-103830.mp4,,,,

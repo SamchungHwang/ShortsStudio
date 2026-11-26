@@ -1,0 +1,41 @@
+{
+  "run_id": "20261126-154328",
+  "purpose": "ass render watering_plants watering_plants_s01",
+  "episode": "watering_plants",
+  "scene_id": "watering_plants_s01",
+  "created_at": "2026-11-26T06:43:28.280481+00:00",
+  "model": "gemini-omni-1.2-flash",
+  "sdk": "google-genai",
+  "sdk_version": "3.6.1",
+  "python_version": "3.13.18",
+  "request": {
+    "model": "gemini-omni-1.2-flash",
+    "input": "Vertical 9:16 video, 15 seconds, one continuous scene. Clean realistic everyday video, soft natural daylight, shallow depth of field, calm and minimal.\nSetting: Bright minimalist living room with potted green plants on a wooden table, soft daylight\nAction:\n[0-3s] Dry potting soil inside a ceramic planter placed by a sunny window, close-up shot. Camera: Static macro shot.\n[3-9s] Small watering can standing beside a green potted plant on a wooden surface. Camera: Slow pan right.\n[9-15s] Hands gently turning a potted plant to inspect the leaves and pot base, torso down view. Camera: Eye-level medium shot.\nAudio: Gentle ambient room tone, soft rustle of leaves\nConstraints: No human faces. No added text overlays, captions or subtitles. No background music. No speech, narration or voice-over.",
+    "response_format": {
+      "type": "video",
+      "aspect_ratio": "9:16",
+      "resolution": "720p",
+      "duration": "15s"
+    }
+  },
+  "mode": "text",
+  "inputs": [],
+  "approved_by": null,
+  "prompt_sha256": "24e3257a9bba35de1e31054c401e71e7d1e71bb03c5a6ba1715152d163fe926e",
+  "policy_hashes": {
+    "production_spec": "e4881678edea",
+    "models": "4555ceffad38",
+    "budget_policy": "5fa1c47512b3",
+    "generation_modes": "306653a5dcd5"
+  },
+  "interaction_id": null,
+  "output_path": null,
+  "elapsed_s": null,
+  "estimated_cost_usd": 1.05,
+  "billed_cost_usd": null,
+  "status": "dry_run",
+  "attempts": 0,
+  "attempt_errors": [],
+  "error": null,
+  "notes": null
+}

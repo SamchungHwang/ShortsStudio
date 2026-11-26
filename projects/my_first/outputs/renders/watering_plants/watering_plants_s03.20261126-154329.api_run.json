@@ -1,0 +1,41 @@
+{
+  "run_id": "20261126-154329",
+  "purpose": "ass render watering_plants watering_plants_s03",
+  "episode": "watering_plants",
+  "scene_id": "watering_plants_s03",
+  "created_at": "2026-11-26T06:43:29.491241+00:00",
+  "model": "gemini-omni-1.2-flash",
+  "sdk": "google-genai",
+  "sdk_version": "3.6.1",
+  "python_version": "3.13.18",
+  "request": {
+    "model": "gemini-omni-1.2-flash",
+    "input": "Vertical 9:16 video, 15 seconds, one continuous scene. Clean realistic everyday video, soft natural daylight, shallow depth of field, calm and minimal.\nSetting: Clean and tidy indoor plant shelf in a sunny room\nAction:\n[0-5s] A clean potted plant standing on a dry saucer on a wooden plant shelf. Camera: Static medium close-up.\n[5-10s] Potted green plant with fresh foliage illuminated by soft sunlight. Camera: Slow tilt-up shot of the plant stem and leaves.\n[10-15s] A hand reaching toward the plant pot to touch the soil in daylight. Camera: Close-up shot of hand approaching soil surface.\nAudio: Calm and peaceful room tone with subtle breeze sound\nConstraints: No human faces. No added text overlays, captions or subtitles. No background music. No speech, narration or voice-over.",
+    "response_format": {
+      "type": "video",
+      "aspect_ratio": "9:16",
+      "resolution": "720p",
+      "duration": "15s"
+    }
+  },
+  "mode": "text",
+  "inputs": [],
+  "approved_by": null,
+  "prompt_sha256": "45e5c44181a0954b94f3fc84a0ca5d9ff8e8f8f9f87bbb0d86f5957052be09bc",
+  "policy_hashes": {
+    "production_spec": "e4881678edea",
+    "models": "4555ceffad38",
+    "budget_policy": "5fa1c47512b3",
+    "generation_modes": "306653a5dcd5"
+  },
+  "interaction_id": null,
+  "output_path": null,
+  "elapsed_s": null,
+  "estimated_cost_usd": 1.05,
+  "billed_cost_usd": null,
+  "status": "dry_run",
+  "attempts": 0,
+  "attempt_errors": [],
+  "error": null,
+  "notes": null
+}

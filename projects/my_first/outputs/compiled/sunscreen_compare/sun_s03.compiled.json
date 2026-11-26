@@ -1,0 +1,43 @@
+{
+  "scene_id": "sun_s03",
+  "duration_s": 15,
+  "aspect_ratio": "9:16",
+  "prompt": "Vertical 9:16 video, 15 seconds, one continuous scene. Clean realistic product video, soft natural daylight, shallow depth of field, calm and minimal.\nSetting: The same clean white tabletop by a window in soft daylight, plain light grey wall behind.\nProducts (keep shape, color and label exactly as described):\n- MOALAB Gel Sunscreen: a 50 ml slim white squeeze tube with a pale blue cap and a pale blue label reading MOALAB\n- HARUON Cream Sunscreen: a 50 ml short beige squeeze tube with an orange cap and an orange label reading HARUON\nAction:\n[0-5s] The two glass dishes sit side by side, clear gel on the left and white cream on the right. Camera: top-down static shot.\n[5-10s] A fingertip lifts a little of the clear gel, then a little of the white cream. Camera: macro shot, shallow depth of field.\n[10-15s] Final shot of both tubes standing behind their dishes, labels facing the camera. Camera: slow pull-back to a wide two-shot.\nAudio: Quiet room tone.\nConstraints: No human faces. No added text overlays, captions or subtitles (the product label itself stays). No background music. No speech, narration or voice-over.",
+  "prompt_sha256": "2c9d450e09872f7b46377d91e94c330258d96d4f7b258ec1cbe668651ab2d98c",
+  "narration_mode": "tts",
+  "narration": [
+    {
+      "start_s": 0,
+      "end_s": 5,
+      "text": "용량은 같고 제형이 다르다.",
+      "caption": "용량 같고 제형 다름",
+      "evidence": [
+        "gel_sun_volume",
+        "cream_sun_volume",
+        "gel_sun_texture",
+        "cream_sun_texture"
+      ]
+    },
+    {
+      "start_s": 5,
+      "end_s": 10,
+      "text": "어느 쪽이 낫다고 정하지 않는다.",
+      "caption": "승패는 없다",
+      "evidence": []
+    },
+    {
+      "start_s": 10,
+      "end_s": 15,
+      "text": "좋아하는 제형으로 고르면 된다.",
+      "caption": "제형으로 고르기",
+      "evidence": [
+        "gel_sun_texture",
+        "cream_sun_texture"
+      ]
+    }
+  ],
+  "needs_human_approval": true,
+  "compiler_version": "0.2.0",
+  "lexicon_version": "2026-11-17-draft",
+  "product_bible_version": "0.1"
+}

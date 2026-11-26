@@ -424,3 +424,46 @@ def sample_scene(episode: str, number: int, sample_dir: Path = SAMPLE_DIR) -> di
         raise InputError(f"견본에 장면 {number} 이 없다")
     doc["episode_id"] = episode
     return doc
+
+
+def sample_episode_ids(sample_dir: Path = SAMPLE_DIR) -> list[str]:
+    """견본에서 장면까지 갖춘 편."""
+    root = sample_dir / "episodes"
+    return sorted(d.name for d in root.iterdir() if d.is_dir() and any(d.glob("scene_*.yaml"))) if root.is_dir() else []
+
+
+def import_sample_episode(project_dir: Path, episode: str, sample_dir: Path = SAMPLE_DIR) -> list[tuple[str, str]]:
+    """견본의 편 하나(제품, 원문, 소재 요약, 장면)를 이 프로젝트로 복사한다. 이미 있는 것은 덮어쓰지 않는다.
+
+    돌려주는 것은 (무엇, "가져왔다" 또는 "이미 있다")의 목록이다. 레퍼런스 이미지는 가져오지 않는다. 사람이 골라야 하기 때문이다.
+    """
+    if Path(project_dir).resolve() == Path(sample_dir).resolve():
+        raise InputError("지금 프로젝트가 견본이다. 내 프로젝트를 먼저 고른다: ass project 이름 (없으면 ass init 이름)")
+    scenes = sorted((sample_dir / "episodes" / episode).glob("scene_*.yaml"))
+    if not scenes:
+        raise InputError(f"견본에 없는 편: {episode}. 있는 것: {', '.join(sample_episode_ids(sample_dir))}")
+    done: list[tuple[str, str]] = []
+    wanted: list[str] = []
+    for doc in [brief_doc(sample_dir, episode) or {}] + [yaml.safe_load(f.read_text(encoding="utf-8")) or {} for f in scenes]:
+        wanted += [p for p in doc.get("products") or [] if p not in wanted]
+    have = product_ids(project_dir)
+    for product_id in wanted:
+        if product_id in have:
+            done.append((f"제품 {product_id}", "이미 있다"))
+        else:
+            save_product(project_dir, product_id, sample_product(product_id, sample_dir))
+            done.append((f"제품 {product_id}", "가져왔다"))
+    files = [(sample_dir / "sources" / f"{episode}.txt", project_dir / "sources" / f"{episode}.txt"),
+             (sample_dir / "source_briefs" / f"{episode}.yaml", project_dir / "source_briefs" / f"{episode}.yaml")]
+    files += [(f, project_dir / "episodes" / episode / f.name) for f in scenes]
+    for source, target in files:
+        if not source.is_file():
+            continue
+        name = str(target.relative_to(project_dir)).replace("/", "\\")
+        if target.exists():
+            done.append((name, "이미 있다"))
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
+            done.append((name, "가져왔다"))
+    return done

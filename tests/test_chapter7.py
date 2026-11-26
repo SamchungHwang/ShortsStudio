@@ -201,3 +201,30 @@ def test_콘솔의_생성_실행에_모드와_승인이_붙는다():
     runs = m.build_runs("render", "sunscreen_compare", scene="2", dry_run=False, approved_by="황삼청")
     assert runs == [["render", "--episode", "sunscreen_compare", "--scene", "2", "--approved-by", "황삼청"]]
     assert m.mode_of(m.MODE_LABELS["reference"]) == "reference" and m.mode_of("?") == "text"
+
+
+# ---------------------------------------------------------------- 견본 편 가져오기
+def test_견본의_편을_내_프로젝트로_가져온다(tmp_path, monkeypatch, capsys):
+    from ass import authoring
+
+    mine = authoring.init_project("mine", tmp_path)
+    done = authoring.import_sample_episode(mine, "sunscreen_compare")
+    assert ("제품 haruon_cream_sunscreen", "가져왔다") in done and len([d for d in done if d[1] == "가져왔다"]) == 6
+    got, sample = authoring.product_doc(mine, "haruon_cream_sunscreen"), authoring.sample_product("haruon_cream_sunscreen")
+    assert all(got[k] == v for k, v in sample.items()) and got["is_own"] is False      # 타사 제품이라는 표시도 따라온다
+    scene = mine / "episodes" / "sunscreen_compare" / "scene_02_side_by_side.yaml"
+    scene.write_text(scene.read_text(encoding="utf-8") + "# 내가 고쳤다\n", encoding="utf-8")
+    again = authoring.import_sample_episode(mine, "sunscreen_compare")
+    assert {state for _, state in again} == {"이미 있다"} and scene.read_text(encoding="utf-8").endswith("# 내가 고쳤다\n")
+    with pytest.raises(authoring.InputError, match="견본에 없는 편"):
+        authoring.import_sample_episode(mine, "aqua_serum_intro")          # 소재 요약만 있고 장면이 없는 것은 편이 아니다
+    with pytest.raises(authoring.InputError, match="지금 프로젝트가 견본"):
+        authoring.import_sample_episode(SAMPLE_DIR, "sunscreen_compare")
+    assert "watering_plants" in authoring.sample_episode_ids() and "aqua_serum_intro" not in authoring.sample_episode_ids()
+    monkeypatch.setattr(cli, "EXAMPLE_DIR", mine)
+    monkeypatch.setattr(cli, "OUTPUT_DIR", tmp_path / "out")
+    assert cli.main(["sample"]) == 0 and "sunscreen_compare     (이 프로젝트에 있다)" in capsys.readouterr().out
+    assert cli.main(["sample", "--episode", "watering_plants"]) == 0     # 제품이 없는 편도 된다
+    assert "sources\\watering_plants.txt" in capsys.readouterr().out
+    assert cli.main(["compile", "--episode", "sunscreen_compare"]) == 0
+    assert cli.main(["sample", "--episode", "nope"]) == 4

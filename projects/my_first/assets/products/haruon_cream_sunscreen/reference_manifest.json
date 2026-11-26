@@ -1,0 +1,64 @@
+{
+  "product_id": "haruon_cream_sunscreen",
+  "manifest_version": 1,
+  "selected_at": "2026-11-26T15:19:49",
+  "selected_by": "황삼청",
+  "note": "",
+  "bible_version": "0.1",
+  "appearance_en": "a 50 ml short beige squeeze tube with an orange cap and an orange label reading HARUON",
+  "appearance_sha256": "c405a969d317b38eaf195c1172cdc727af0ab25ae4965a2e75b22ff83b8b0438",
+  "source_mode": "text",
+  "images": [
+    {
+      "view": "front",
+      "file": "reference/front.jpg",
+      "sha256": "9375c10be519ea287681e1843a50e688335e8ce50aa483b2d0cb058266a72387",
+      "bytes": 399659,
+      "from_version": "v001",
+      "run_id": "20261126-151533",
+      "model": "gemini-nano-banana-2.1",
+      "prompt_sha256": "c4d5b9b3b21c28e702efccf5f83966d9f471240eff3da79612e1e25a5d7f780e"
+    },
+    {
+      "view": "three_quarter",
+      "file": "reference/three_quarter.jpg",
+      "sha256": "d4cdd42b2acb8ef408921cb9929f7a183608096736265f545a053734ff547c62",
+      "bytes": 407724,
+      "from_version": "v001",
+      "run_id": "20261126-151551",
+      "model": "gemini-nano-banana-2.1",
+      "prompt_sha256": "da6733956b8c605ab9d2bd39ccdea556525f5705adde927590b6cac421a945c5"
+    },
+    {
+      "view": "side",
+      "file": "reference/side.jpg",
+      "sha256": "35a80783b781eeebb5b4c2affd04e14fa634730b2b4d6e4c612e7ff787bf90a0",
+      "bytes": 398864,
+      "from_version": "v001",
+      "run_id": "20261126-151606",
+      "model": "gemini-nano-banana-2.1",
+      "prompt_sha256": "c1ddfb3e801887d07d7d7e85455c81bae026e5df9b07eb1733d9c01dc5e8a7b6"
+    },
+    {
+      "view": "label",
+      "file": "reference/label.jpg",
+      "sha256": "95b66f7a0a5d2edbc02f77414fbd3520dfcca88e10eb154a5b4de73146d60991",
+      "bytes": 425110,
+      "from_version": "v001",
+      "run_id": "20261126-151624",
+      "model": "gemini-nano-banana-2.1",
+      "prompt_sha256": "a0574daee2b6976b0892c8426435caed082d76e64ad24a440ed1af74aa6cb3f4"
+    },
+    {
+      "view": "in_hand",
+      "file": "reference/in_hand.jpg",
+      "sha256": "b43c8c006729395b4a2417f4158fc6bdd4445e9532d5b59f38a0ded33200eacd",
+      "bytes": 423417,
+      "from_version": "v001",
+      "run_id": "20261126-151639",
+      "model": "gemini-nano-banana-2.1",
+      "prompt_sha256": "abfa51899ab49578dca0040e82a8a17daa16c3e72e01eee6a794e91b27e8efa6"
+    }
+  ],
+  "history": []
+}

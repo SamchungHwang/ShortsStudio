@@ -127,6 +127,7 @@ class ConsoleApp:
         enter.add_command(label="③ 장면 작성…", command=lambda: self.open_form("SceneForm"))
         enter.add_separator()
         enter.add_command(label="장면 초안 만들기 (ass script)", command=self.run_script)
+        enter.add_command(label="견본 편 가져오기… (ass sample)", command=self.import_sample)
         enter.add_separator()
         enter.add_command(label="프로젝트 폴더 열기", command=lambda: self._open(settings.PROJECT_DIR))
         bar.add_cascade(label="입력", menu=enter)
@@ -319,6 +320,33 @@ class ConsoleApp:
         return text
 
     # ---------------------------------------------------------------- 읽기
+    def import_sample(self) -> None:
+        """견본의 편 하나를 지금 프로젝트로 복사한다. 덮어쓰지 않는다."""
+        from tkinter import simpledialog
+
+        from ass import authoring
+
+        names = authoring.sample_episode_ids(settings.SAMPLE_DIR)
+        mine = authoring.episode_ids(settings.PROJECT_DIR)
+        listing = "\n".join(f"  {n}{'  (이미 있다)' if n in mine else ''}" for n in names)
+        name = simpledialog.askstring(
+            "견본 편 가져오기",
+            f"견본의 편(제품, 소재 요약, 장면 셋)을 지금 프로젝트로 복사합니다.\n이미 있는 파일은 덮어쓰지 않습니다.\n\n{listing}\n\n가져올 편의 이름을 적으세요.",
+            initialvalue=next((n for n in names if n not in mine), names[0] if names else ""), parent=self.root)
+        if not name:
+            return
+        try:
+            done = authoring.import_sample_episode(settings.PROJECT_DIR, name.strip())
+        except authoring.InputError as exc:
+            messagebox.showwarning("견본 편 가져오기", str(exc), parent=self.root)
+            return
+        self.reload()
+        if name.strip() in self.episode_box.cget("values"):
+            self.episode.set(name.strip())
+            self.on_episode()
+        messagebox.showinfo("견본 편 가져오기", "\n".join(f"{state}: {what}" for what, state in done)
+                            + "\n\n레퍼런스 이미지는 가져오지 않습니다. 5장의 순서로 만듭니다.", parent=self.root)
+
     def reload(self) -> None:
         """설정 파일과 예제 폴더를 다시 읽는다."""
         self.workflow = load_workflow()

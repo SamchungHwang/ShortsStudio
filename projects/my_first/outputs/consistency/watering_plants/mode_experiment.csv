@@ -1,0 +1,4 @@
+﻿scene_id,mode,run_id,images,elapsed_s,estimated_cost_usd,attempts,reused,video,shape,color,label,note
+watering_plants_s01,text,20261126-154519,0,60.71,1.05,1,,watering_plants_s01.20261126-154519.mp4,,,,
+watering_plants_s02,text,20261126-154621,0,71.67,1.05,1,,watering_plants_s02.20261126-154621.mp4,,,,
+watering_plants_s03,text,20261126-154734,0,61.81,1.05,1,,watering_plants_s03.20261126-154734.mp4,,,,

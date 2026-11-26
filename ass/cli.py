@@ -987,6 +987,10 @@ def build_parser() -> argparse.ArgumentParser:
     sc.add_argument("--dry-run", action="store_true", help="호출하지 않고 보내는 글만 출력")
     sc.set_defaults(func=cmd_script)
 
+    sm = sub.add_parser("sample", help="견본의 편 하나(제품, 소재 요약, 장면)를 지금 프로젝트로 가져온다 (비용 없음)")
+    sm.add_argument("--episode", default=None, help="가져올 편. 적지 않으면 견본에 있는 편을 보여 준다")
+    sm.set_defaults(func=cmd_sample)
+
     u = sub.add_parser("reuse", help="다른 프로젝트에서 같은 프롬프트로 만든 영상을 가져온다 (비용 없음)")
     u.add_argument("--from", dest="source", default="sample", help="가져올 곳. 프로젝트 이름. 기본은 견본(sample)")
     u.add_argument("--episode", default="product_intro")
@@ -1008,6 +1012,30 @@ def available_commands() -> set[str]:
         if isinstance(action, argparse._SubParsersAction):  # noqa: SLF001
             return set(action.choices)
     return set()
+
+
+def cmd_sample(args: argparse.Namespace) -> int:
+    """견본의 편을 지금 프로젝트로 복사한다. 이미 있는 것은 덮어쓰지 않는다."""
+    from ass import authoring
+    from ass.settings import SAMPLE_DIR
+
+    if not args.episode:
+        mine = authoring.episode_ids(EXAMPLE_DIR)
+        print("견본에 있는 편:")
+        for name in authoring.sample_episode_ids(SAMPLE_DIR):
+            print(f"  {name:<22}{'(이 프로젝트에 있다)' if name in mine else ''}")
+        print("가져오기: ass sample --episode 이름")
+        return 0
+    try:
+        done = authoring.import_sample_episode(EXAMPLE_DIR, args.episode)
+    except authoring.InputError as exc:
+        print(f"[막힘] {exc}")
+        return 4
+    for what, state in done:
+        print(f"  {state:<5} {what}")
+    print(f"견본의 편 {args.episode} 을 가져왔다. 이미 있는 것은 그대로 두었다. 레퍼런스 이미지는 가져오지 않는다(5장의 순서로 만든다).")
+    print(f"다음: ass compile --episode {args.episode}")
+    return 0
 
 
 def cmd_init(args: argparse.Namespace) -> int:

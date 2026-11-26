@@ -1,0 +1,33 @@
+scene_id: sun_s02
+episode_id: sunscreen_compare
+format: comparison
+role: side_by_side
+duration_s: 15
+products: [moalab_gel_sunscreen, haruon_cream_sunscreen]
+setting_en: "The same clean white tabletop by a window in soft daylight, plain light grey wall behind."
+beats:
+  - start_s: 0
+    end_s: 5
+    visual_ko: "나란히 선 두 튜브. 왼쪽이 모아랩 젤 선크림, 오른쪽이 하루온 크림 선크림."
+    visual_en: "The MOALAB Gel Sunscreen on the left and the HARUON Cream Sunscreen on the right stand side by side, both labels facing the camera"
+    camera_en: "static centered two-shot"
+    narration_ko: "둘 다 용량은 50밀리리터."
+    caption_ko: "둘 다 50ml"
+    evidence: [gel_sun_volume, cream_sun_volume]
+  - start_s: 5
+    end_s: 10
+    visual_ko: "왼쪽 접시에 투명한 젤이 짜인다."
+    visual_en: "A hand squeezes a small amount of clear gel from the left tube onto the left glass dish"
+    camera_en: "close-up on the left dish"
+    narration_ko: "젤 선크림은 투명한 젤."
+    caption_ko: "투명한 젤"
+    evidence: [gel_sun_texture]
+  - start_s: 10
+    end_s: 15
+    visual_ko: "오른쪽 접시에 흰 크림이 짜인다."
+    visual_en: "A hand squeezes a small amount of white cream from the right tube onto the right glass dish"
+    camera_en: "close-up on the right dish"
+    narration_ko: "크림 선크림은 흰색 크림."
+    caption_ko: "흰색 크림"
+    evidence: [cream_sun_texture]
+audio_en: "Quiet room tone, two soft squeezes."

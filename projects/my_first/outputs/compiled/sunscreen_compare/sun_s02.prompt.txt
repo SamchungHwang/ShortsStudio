@@ -1,0 +1,11 @@
+Vertical 9:16 video, 15 seconds, one continuous scene. Clean realistic product video, soft natural daylight, shallow depth of field, calm and minimal.
+Setting: The same clean white tabletop by a window in soft daylight, plain light grey wall behind.
+Products (keep shape, color and label exactly as described):
+- MOALAB Gel Sunscreen: a 50 ml slim white squeeze tube with a pale blue cap and a pale blue label reading MOALAB
+- HARUON Cream Sunscreen: a 50 ml short beige squeeze tube with an orange cap and an orange label reading HARUON
+Action:
+[0-5s] The MOALAB Gel Sunscreen on the left and the HARUON Cream Sunscreen on the right stand side by side, both labels facing the camera. Camera: static centered two-shot.
+[5-10s] A hand squeezes a small amount of clear gel from the left tube onto the left glass dish. Camera: close-up on the left dish.
+[10-15s] A hand squeezes a small amount of white cream from the right tube onto the right glass dish. Camera: close-up on the right dish.
+Audio: Quiet room tone, two soft squeezes.
+Constraints: No human faces. No added text overlays, captions or subtitles (the product label itself stays). No background music. No speech, narration or voice-over.
