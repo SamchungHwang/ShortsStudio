@@ -1,0 +1,41 @@
+# generation_modes.yaml — 생성 모드와 레퍼런스 배분 (7장). `ass render --mode` 와 `ass consistency` 가 읽는다.
+# 태그와 선언의 문법은 Gemini API Omni 가이드(예제는 1.1 기준)에서 확인했다. 1.2 에서 같은지는 실제 호출로 확인한다 (E01, E12).
+version: "2026-11-26"
+default_mode: text
+send_task: false          # 가이드: task 는 프롬프트로 안 될 때만 쓴다 ("adds some constraints"). 기본은 보내지 않는다
+modes:
+  text:
+    name_ko: 글만
+    task: text_to_video
+    images: none
+    use_ko: "제품이 없는 장면. 제품이 작게 스치는 장면. 가장 싸게 여러 번 뽑아 볼 때"
+  reference:
+    name_ko: 제품 레퍼런스
+    task: reference_to_video
+    images: product_reference      # 5장에서 고른 레퍼런스(assets/products/<제품>/reference/)
+    use_ko: "제품이 화면의 주인공인 장면. 라벨과 색이 장면마다 같아야 할 때"
+  image:
+    name_ko: 첫 프레임
+    task: image_to_video
+    images: first_frame            # --first-frame 으로 준 이미지 한 장에서 시작한다
+    use_ko: "구도와 제품의 놓임을 이미지로 먼저 정해 두고 움직임만 만들 때"
+  frames:
+    name_ko: 첫·끝 프레임
+    task: image_to_video
+    images: first_last_frame       # --first-frame, --last-frame
+    use_ko: "시작과 끝의 모습이 정해진 변화(뚜껑이 닫힌 병에서 열린 병으로). 다음 장면의 첫 프레임에 맞춰 끝낼 때"
+reference:
+  # 레퍼런스 이미지의 상한을 공식 문서에서 확인하지 못했다. 2차 자료는 6장이라고 한다 (E01). 그 안에서 쓴다.
+  max_images: 6
+  views_by_product_count:          # 장면에 나오는 제품 수에 따라 제품마다 보낼 방향 (reference_sheet.yaml 의 view id)
+    1: [front, three_quarter, label]
+    2: [front, label]
+    3: [front]
+  keep_line_en: "Keep each product identical to its reference images: same shape, proportions, colors, cap and label text. Do not redesign the products."
+consistency:
+  still_fractions: [0.15, 0.5, 0.85]   # 장면 길이의 어느 지점에서 정지 화면을 뽑는가
+  checklist:                            # 사람이 보고 적는다. 프로그램은 판정하지 않는다
+    - {id: shape, name_ko: 형태, look_ko: "용기의 종류, 비율, 뚜껑의 모양이 레퍼런스와 같은가"}
+    - {id: color, name_ko: 색, look_ko: "용기, 뚜껑, 라벨의 색이 같은가. 장면 사이에 달라지지 않는가"}
+    - {id: label, name_ko: 라벨, look_ko: "라벨의 글자가 맞는가. 요청하지 않은 글자가 생기지 않았는가. 뭉개지지 않았는가"}
+  marks: ["같다", "조금 다르다", "다르다", "안 보인다"]

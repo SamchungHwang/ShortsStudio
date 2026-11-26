@@ -467,6 +467,25 @@ def test_소재_입력의_초안_만들기와_불러오기(forms):
     (draft / "script_check.yaml").write_text("check: ['장면 1 구간 1: x', '장면 2 구간 1: y', '문법: z']\n", encoding="utf-8")
     scene = console_forms.SceneForm(app)
     scene.open()
+    scene.number.set("2")
+    scene.load_draft()                                         # 장면 2의 초안은 없다. 어떻게 만드는지 알려 준다
+    assert console_forms.messagebox.showinfo.call_args[0][0] == "장면 초안이 없습니다"
+    app.dry_run.get.return_value = False
+    scene.make_draft()                                         # 창 안에서 이 편의 장면 초안을 만든다
+    assert app.run_script.call_args.kwargs["episode"] == "product_intro"
+    assert app.after_run == scene._draft_done                  # 끝나면 초안을 대신 불러온다
+    scene.number.set("1")
+    scene.win = scene.win or __import__("unittest.mock").mock.MagicMock()      # 이 시험에는 편 폴더가 없어 창을 만들지 않았다
+    scene._draft_done(1)                                       # 실패하면 칸을 건드리지 않는다
+    assert scene.beats[0]["visual_ko"].get() == "" and "만들지 못했습니다" in scene.draft_note.get()
+    scene._draft_done(0)
+    assert scene.beats[0]["visual_ko"].get() == "초안 화면"
+    scene.beats[0]["visual_ko"].set("내가 적은 화면")
+    console_forms.messagebox.askyesno.return_value = False
+    scene._draft_done(0)                                       # 적어 둔 것이 있으면 묻는다
+    assert scene.beats[0]["visual_ko"].get() == "내가 적은 화면"
+    scene.beats[0]["visual_ko"].set("")
+    scene.number.set("1")
     scene.load_draft()
     assert scene.beats[0]["visual_ko"].get() == "초안 화면" and scene.setting.get() == "A desk"
     assert "확인할 것 2개" in console_forms.messagebox.showinfo.call_args[0][1]
@@ -515,9 +534,10 @@ def test_장면_작성의_견본도_편을_따른다(forms):
     assert authoring.sample_scene_for(project, "watering_plants", 2)["role"] == "methods"
     assert authoring.sample_scene_for(project, "product_intro", 2)["role"] == "solution"
     assert authoring.sample_scene_for(project, "my_new_episode", 1)["role"] == "problem"     # 소재 요약이 없으면 세럼
+    assert authoring.sample_scene_for(project, "sunscreen_compare", 2)["role"] == "side_by_side"   # 비교 편의 장면 견본 (7장)
     (project / "source_briefs").mkdir(parents=True, exist_ok=True)
-    (project / "source_briefs" / "sunscreen_compare.yaml").write_text("format: comparison\n", encoding="utf-8")
-    assert authoring.sample_scene_for(project, "sunscreen_compare", 1) is None              # 비교 편의 장면 견본은 없다
+    (project / "source_briefs" / "fridge_smell.yaml").write_text("format: info\n", encoding="utf-8")
+    assert authoring.sample_scene_for(project, "fridge_smell", 1) is None                     # 냉장고 편의 장면 견본은 없다
 
 
 def test_아이디어_한_줄에서_시작한_편은_근거가_비면_저장하지_않는다(forms):

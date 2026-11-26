@@ -1,0 +1,31 @@
+# 장면 1 초안 — gemini-3.8-flash 이 만들었다. 사람이 고쳐서 저장해야 쓰인다
+scene_id: watering_plants_s01
+episode_id: watering_plants
+format: info
+role: question
+duration_s: 15
+products: []
+setting_en: Bright living room near a window with potted plants
+beats:
+- start_s: 0
+  end_s: 3
+  visual_ko: 창가에 놓인 화분들이 부드러운 자연광을 받고 있다.
+  visual_en: Indoor potted houseplants arranged on a wooden table under soft natural daylight.
+  camera_en: Static eye-level shot with shallow depth of field
+  narration_ko: 화분에 물은 언제 주어야 할까.
+  caption_ko: 화분 물주기 타이밍
+- start_s: 3
+  end_s: 9
+  visual_ko: 화분의 건조한 흙 표면이 클로즈업되어 보인다.
+  visual_en: Close-up of dry potting soil inside a ceramic flower pot in minimal setting.
+  camera_en: Slow push-in macro shot
+  narration_ko: 무작정 날짜를 정해 주면 흙이 썩을 수 있다.
+  caption_ko: 날짜만 맞추면 안 된다
+- start_s: 9
+  end_s: 15
+  visual_ko: 초록색 잎을 가진 화분 옆에 작은 물뿌리개가 놓여 있다.
+  visual_en: A small watering can sitting next to a green indoor plant in a calm room.
+  camera_en: Slow pan from watering can to plant pot
+  narration_ko: 흙 상태를 보고 주는 세 가지 방법을 알아본다.
+  caption_ko: 물주는 세 가지 방법
+audio_en: Quiet room ambiance with soft rustle of plant leaves

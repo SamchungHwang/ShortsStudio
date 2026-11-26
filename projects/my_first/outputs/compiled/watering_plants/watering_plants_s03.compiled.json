@@ -1,0 +1,35 @@
+{
+  "scene_id": "watering_plants_s03",
+  "duration_s": 15,
+  "aspect_ratio": "9:16",
+  "prompt": "Vertical 9:16 video, 15 seconds, one continuous scene. Clean realistic everyday video, soft natural daylight, shallow depth of field, calm and minimal.\nSetting: Clean and tidy indoor plant shelf in a sunny room\nAction:\n[0-5s] A clean potted plant standing on a dry saucer on a wooden plant shelf. Camera: Static medium close-up.\n[5-10s] Potted green plant with fresh foliage illuminated by soft sunlight. Camera: Slow tilt-up shot of the plant stem and leaves.\n[10-15s] A hand reaching toward the plant pot to touch the soil in daylight. Camera: Close-up shot of hand approaching soil surface.\nAudio: Calm and peaceful room tone with subtle breeze sound\nConstraints: No human faces. No added text overlays, captions or subtitles. No background music. No speech, narration or voice-over.",
+  "prompt_sha256": "45e5c44181a0954b94f3fc84a0ca5d9ff8e8f8f9f87bbb0d86f5957052be09bc",
+  "narration_mode": "tts",
+  "narration": [
+    {
+      "start_s": 0,
+      "end_s": 5,
+      "text": "흙 확인과 흠뻑 주기, 받침 비우기를 기억한다.",
+      "caption": "물주기 세 가지 정리",
+      "evidence": []
+    },
+    {
+      "start_s": 5,
+      "end_s": 10,
+      "text": "올바른 방법으로 물을 주면 화분을 건강하게 가꾼다.",
+      "caption": "건강한 화분 관리",
+      "evidence": []
+    },
+    {
+      "start_s": 10,
+      "end_s": 15,
+      "text": "지금 화분의 흙에 손가락을 넣어 확인해본다.",
+      "caption": "지금 흙을 확인해보자",
+      "evidence": []
+    }
+  ],
+  "needs_human_approval": false,
+  "compiler_version": "0.2.0",
+  "lexicon_version": "2026-11-17-draft",
+  "product_bible_version": "0.1"
+}

@@ -20,7 +20,7 @@ def test_every_workflow_command_has_a_note():
 
 
 def test_episode_list_and_summary():
-    assert model.list_episodes() == ["product_intro", "watering_plants"]
+    assert model.list_episodes() == ["product_intro", "sunscreen_compare", "watering_plants"]
     summary = model.episode_summary("product_intro")
     assert "제품 설명 · 장면 3개 · 45초 · 초안 1회 추정 $3.15 (720p)" in summary
 

@@ -56,6 +56,7 @@ def build_request(
     image_paths: list[str | Path] | None = None,
     previous_interaction_id: str | None = None,
     delivery: str = "inline",
+    task: str | None = None,
 ) -> dict[str, Any]:
     """interactions.create 에 넘길 인자를 만든다. 네트워크를 쓰지 않는다."""
     if not prompt.strip():
@@ -95,6 +96,8 @@ def build_request(
     }
     if previous_interaction_id:
         request["previous_interaction_id"] = previous_interaction_id
+    if task:                    # 가이드: 프롬프트로 안 될 때만 쓴다. 기본은 보내지 않는다 (generation_modes.yaml 의 send_task)
+        request["generation_config"] = {"video_config": {"task": task}}
     return request
 
 

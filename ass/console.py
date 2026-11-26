@@ -42,6 +42,7 @@ class ConsoleApp:
         self.models = load_policy("models").data
         self.process: subprocess.Popen | None = None
         self.pending: list[list[str]] = []
+        self.after_run = None                # 실행이 다 끝났을 때 한 번 부를 것 (종료코드를 받는다). 입력 창이 건다
         self.events: queue.Queue = queue.Queue()
         self.stop_requested = False
 
@@ -57,6 +58,7 @@ class ConsoleApp:
         self.stage = tk.StringVar()
         self.command = tk.StringVar()
         self.dry_run = tk.BooleanVar(value=True)
+        self.mode = tk.StringVar(value=model.MODE_LABELS["text"])      # 생성 모드 (7장). 장면 생성에만 쓰인다
         self.status = tk.StringVar()
         self.summary = tk.StringVar()
         self.hint = tk.StringVar()
@@ -133,6 +135,7 @@ class ConsoleApp:
         work.add_separator()
         work.add_command(label="제품 바이블 점검 (ass bible)", command=self.run_bible)
         work.add_command(label="레퍼런스 일부 방향만 다시 만들기… (ass sheet --views)", command=self.remake_views)
+        work.add_command(label="일관성 점검표 만들기 (ass consistency)", command=self.run_consistency)
         work.add_command(label="레퍼런스 고르기… (ass sheet --select)", command=self.choose_references)
         work.add_separator()
         work.add_command(label="견본에서 만든 영상 가져오기 (ass reuse)", command=self.run_reuse)
@@ -228,6 +231,11 @@ class ConsoleApp:
                         command=self.on_selection).grid(row=4, column=1, columnspan=2, sticky="w", padx=6)
         ttk.Label(box, textvariable=self.hint, foreground=GREY, wraplength=720, justify="left").grid(
             row=4, column=3, columnspan=4, sticky="w")
+        ttk.Label(box, text="생성 모드").grid(row=5, column=0, sticky="w", padx=6, pady=3)
+        ttk.Combobox(box, textvariable=self.mode, state="readonly", width=26,
+                     values=list(model.MODE_LABELS.values())).grid(row=5, column=1, columnspan=2, sticky="w", padx=6)
+        ttk.Label(box, text="단계 “4. 장면 생성”에만 쓰입니다. 제품 레퍼런스는 5장에서 고른 이미지를 함께 보냅니다",
+                  foreground=GREY).grid(row=5, column=3, columnspan=4, sticky="w")
 
     def _build_stages(self) -> None:
         box = ttk.LabelFrame(self.root, text="여섯 단계", padding=6)
@@ -475,8 +483,17 @@ class ConsoleApp:
                     parent=self.root) or ""
                 if not approved_by.strip():
                     return
+            if command == "render" and not self.dry_run.get() and any(
+                    not p.is_own for p in model.episode_products(episode)):
+                approved_by = simpledialog.askstring(
+                    "타사 제품 승인",
+                    "이 편에는 타사 제품이 나옵니다. 남의 제품의 모습을 만들어 영상에 넣는 일은 사람이 승인합니다.\n\n"
+                    "승인하는 사람의 이름을 적으세요.", parent=self.root) or ""
+                if not approved_by.strip():
+                    return
             runs = model.build_runs(command, episode, self.scene.get(), self.duration.get(), self.dry_run.get(),
-                                    picks=self.picks, approved_by=approved_by.strip())
+                                    picks=self.picks, approved_by=approved_by.strip(),
+                                    mode=model.mode_of(self.mode.get()))
             cost = model.paid_estimate(command, episode, self.scene.get(), self.duration.get(), self.dry_run.get())
         except (UnknownPrice, ValueError) as exc:
             messagebox.showwarning("실행할 수 없습니다", str(exc))
@@ -660,29 +677,37 @@ class ConsoleApp:
                 "프롬프트가 한 글자라도 다르면 가져오지 않습니다. 비용은 들지 않습니다.\n\n가져올까요?"):
             self._begin([["reuse", "--from", settings.SAMPLE_NAME, "--episode", self.episode.get()]])
 
-    def run_script(self) -> None:
-        """저장된 소재 요약에서 장면 셋의 초안을 만든다. 요청만 확인 칸의 체크를 따른다. 저장된 장면은 바뀌지 않는다."""
-        episode = self.episode.get()
+    def run_script(self, episode: str | None = None, parent=None) -> bool:
+        """저장된 소재 요약에서 장면 셋의 초안을 만든다. 요청만 확인 칸의 체크를 따른다. 저장된 장면은 바뀌지 않는다.
+
+        장면 작성 창에서 부르면 그 창의 편으로 만든다. 실행했으면 True."""
+        episode = episode or self.episode.get()
         if self.process is not None or not episode:
-            return
+            return False
         brief = self._forms().authoring.brief_doc(settings.PROJECT_DIR, episode)
         if brief is None and settings.PROJECT != settings.SAMPLE_NAME:
-            messagebox.showinfo("소재 요약이 없습니다", "장면 초안은 저장된 소재 요약에서 만듭니다.\n[입력] → ② 소재 입력을 먼저 저장하세요.")
-            return
+            messagebox.showinfo("소재 요약이 없습니다", "장면 초안은 저장된 소재 요약에서 만듭니다.\n[입력] → ② 소재 입력을 먼저 저장하세요.", parent=parent)
+            return False
         dry = bool(self.dry_run.get())
         if not dry:
             try:
                 cost = model.draft_cost(1500)
             except UnknownPrice as exc:
-                messagebox.showwarning("실행할 수 없습니다", str(exc))
-                return
+                messagebox.showwarning("실행할 수 없습니다", str(exc), parent=parent)
+                return False
             if not messagebox.askokcancel(
                     "글 모델을 호출합니다",
                     f"{episode} 편의 소재 요약과 제품 사실을 글 모델에 보내 장면 셋의 초안을 받습니다.\n"
                     "이미 저장한 장면은 바뀌지 않습니다. 초안은 장면 작성의 [초안 불러오기]로 봅니다.\n\n"
-                    f"어림 상한 ${cost:.2f}\n어림이며 실제 청구액은 결제 화면에서 확인해야 합니다.\n\n실행할까요?"):
-                return
+                    f"어림 상한 ${cost:.2f}\n어림이며 실제 청구액은 결제 화면에서 확인해야 합니다.\n\n실행할까요?", parent=parent):
+                return False
         self._begin(model.script_runs(episode, dry))
+        return True
+
+    def run_consistency(self) -> None:
+        """생성한 장면의 정지 화면을 레퍼런스 옆에 놓고 점검표를 만든다. 호출하지 않는다."""
+        if self.process is None and self.episode.get():
+            self._begin([["consistency", "--episode", self.episode.get()]])
 
     def run_doctor(self) -> None:
         if self.process is not None:
@@ -821,6 +846,12 @@ class ConsoleApp:
                          {"ok": GREEN, "guard": AMBER, "stop": AMBER, "fail": RED}[color])
         self._log(f"── {text} ({stamp}) ──")
         self.refresh_outputs()
+        callback, self.after_run = self.after_run, None
+        if callback is not None:
+            try:
+                callback(code)
+            except tk.TclError:              # 그 사이에 입력 창을 닫았다
+                pass
         self.on_selection()
 
     def stop(self) -> None:

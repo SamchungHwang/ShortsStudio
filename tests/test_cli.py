@@ -31,7 +31,7 @@ def test_render_dry_run_records_without_calling(tmp_path, capsys):
     record = json.loads(records[0].read_text(encoding="utf-8"))
     assert record["status"] == "dry_run"
     assert record["estimated_cost_usd"] == 1.05
-    assert set(record["policy_hashes"]) == {"production_spec", "models", "budget_policy"}
+    assert set(record["policy_hashes"]) == {"production_spec", "models", "budget_policy", "generation_modes"}
     assert record["request"]["response_format"]["duration"] == "15s"
 
 

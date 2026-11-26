@@ -1,0 +1,32 @@
+# 장면 2 — methods
+scene_id: watering_plants_s02
+episode_id: watering_plants
+format: info
+role: methods
+duration_s: 15
+aspect_ratio: '9:16'
+products: []
+setting_en: Sunlit indoor plant care area with wooden table
+beats:
+- start_s: 0
+  end_s: 5
+  visual_ko: 손가락 한 마디를 화분 흙 속에 깊숙이 넣어보는 모습
+  visual_en: Close-up of fingers gently pressing into the potting soil to check moisture
+  camera_en: Static macro angle focusing on soil texture
+  narration_ko: 물을 주기 전에 손가락을 흙에 넣어 마른 상태인지 확인한다.
+  caption_ko: 손가락으로 흙을 확인한다
+- start_s: 5
+  end_s: 10
+  visual_ko: 물뿌리개로 물을 천천히 주자 화분 바닥 구멍으로 물이 흘러나오는 모습
+  visual_en: Water being poured onto soil and slowly dripping out from the drainage hole at the pot bottom
+  camera_en: Tilt down from soil surface to drainage saucer
+  narration_ko: 물을 줄 때는 화분 밑으로 흘러나올 때까지 흠뻑 준다.
+  caption_ko: 화분 밑으로 흐르게 준다
+- start_s: 10
+  end_s: 15
+  visual_ko: 화분 받침에 고인 물을 싱크대에 비워내는 손
+  visual_en: Two hands lifting the drainage saucer and pouring out accumulated water into a sink
+  camera_en: Over-the-shoulder medium shot
+  narration_ko: 물을 주고 십 분쯤 지나 받침에 고인 물은 버린다.
+  caption_ko: 받침에 고인 물은 버린다
+audio_en: Rustling of dry soil, gentle sound of pouring water

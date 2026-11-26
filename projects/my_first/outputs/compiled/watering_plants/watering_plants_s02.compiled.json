@@ -1,0 +1,35 @@
+{
+  "scene_id": "watering_plants_s02",
+  "duration_s": 15,
+  "aspect_ratio": "9:16",
+  "prompt": "Vertical 9:16 video, 15 seconds, one continuous scene. Clean realistic everyday video, soft natural daylight, shallow depth of field, calm and minimal.\nSetting: Sunlit indoor plant care area with wooden table\nAction:\n[0-5s] Close-up of fingers gently pressing into the potting soil to check moisture. Camera: Static macro angle focusing on soil texture.\n[5-10s] Water being poured onto soil and slowly dripping out from the drainage hole at the pot bottom. Camera: Tilt down from soil surface to drainage saucer.\n[10-15s] Two hands lifting the drainage saucer and pouring out accumulated water into a sink. Camera: Over-the-shoulder medium shot.\nAudio: Rustling of dry soil, gentle sound of pouring water\nConstraints: No human faces. No added text overlays, captions or subtitles. No background music. No speech, narration or voice-over.",
+  "prompt_sha256": "d92a298f9c8a37de50ccfae049b48f2f231adddc7187d1996ef1d99a586d1204",
+  "narration_mode": "tts",
+  "narration": [
+    {
+      "start_s": 0,
+      "end_s": 5,
+      "text": "물을 주기 전에 손가락을 흙에 넣어 마른 상태인지 확인한다.",
+      "caption": "손가락으로 흙을 확인한다",
+      "evidence": []
+    },
+    {
+      "start_s": 5,
+      "end_s": 10,
+      "text": "물을 줄 때는 화분 밑으로 흘러나올 때까지 흠뻑 준다.",
+      "caption": "화분 밑으로 흐르게 준다",
+      "evidence": []
+    },
+    {
+      "start_s": 10,
+      "end_s": 15,
+      "text": "물을 주고 십 분쯤 지나 받침에 고인 물은 버린다.",
+      "caption": "받침에 고인 물은 버린다",
+      "evidence": []
+    }
+  ],
+  "needs_human_approval": false,
+  "compiler_version": "0.2.0",
+  "lexicon_version": "2026-11-17-draft",
+  "product_bible_version": "0.1"
+}

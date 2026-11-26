@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+from pathlib import Path
+import shutil
 import json
 import os
 import sys
@@ -33,7 +35,7 @@ from ass import __version__
 from ass.guards.cost_guard import BudgetGuard, UnknownPrice, estimate_image_cost, estimate_text_cost, estimate_token_cost, estimate_video_cost
 from ass.policy import load_policy
 from ass import ledger
-from ass.production import (assembler, bible_lint, drafting, image_client, omni_client, reference_sheet, retry, reuse,
+from ass.production import (assembler, bible_lint, consistency, drafting, gen_mode, image_client, omni_client, reference_sheet, retry, reuse,
                             text_client)
 from ass.production.claims_guard import ClaimsGuard
 from ass.production.grammar import check_grammar, storyboard_markdown
@@ -199,18 +201,35 @@ def cmd_render(args: argparse.Namespace) -> int:
             raise SystemExit(f"--scene 은 1~{len(scenes)} 이어야 한다")
         scene = scenes[args.scene - 1]
         compiled = compile_scene(scene, bible, spec.data)
-        if compiled.needs_human_approval:
-            print("타사 제품이 나오는 장면이다. 사람 승인 절차(9.4절)를 거친 뒤 생성한다. "
-                  "승인 명령이 생기기 전까지는 생성하지 않는다.")
+        if compiled.needs_human_approval and not args.dry_run and not (args.approved_by or "").strip():
+            print("[막힘] 타사 제품이 나오는 장면이다. 남의 제품의 모습을 만들어 영상에 넣는 일은 사람이 승인한다. "
+                  "승인하는 사람의 이름을 --approved-by 로 적는다. 콘솔에서는 실행할 때 이름을 묻는다.")
             return 3
         prompt, prompt_sha, label = compiled.prompt, compiled.prompt_sha256, scene.scene_id
         duration, aspect, episode = args.duration or scene.duration_s, args.aspect or scene.aspect_ratio, args.episode
+
+    modes = load_policy("generation_modes")
+    mode = args.mode or modes.data["default_mode"]
+    try:
+        gen = gen_mode.plan(
+            mode, prompt, modes.data,
+            products=None if args.prompt else [bible.get(pid) for pid in scene.products],
+            sheet_recipe=None if args.prompt else load_policy("reference_sheet").data,
+            project_dir=None if args.prompt else EXAMPLE_DIR,
+            views=[v.strip() for v in (args.views or "").split(",") if v.strip()] or None,
+            first_frame=args.first_frame, last_frame=args.last_frame)
+    except gen_mode.ModeError as exc:
+        print(f"[막힘] {exc}")
+        return 2
+    if mode != "text":                     # 글만 모드의 프롬프트와 해시는 4장과 한 글자도 다르지 않다
+        prompt, prompt_sha = gen.prompt, gen.prompt_sha256
 
     resolution = args.resolution or spec.data["shot"]["draft_resolution"]
     model_id = models.data["video"]["id"]
     request = omni_client.build_request(
         prompt, model=model_id, duration_s=duration,
         aspect_ratio=aspect, resolution=resolution, delivery=args.delivery,
+        image_paths=gen.image_paths() or None, task=gen.task,
     )
     cost = estimate_video_cost(duration, resolution, models.data)
     guard = BudgetGuard(_run_budget_usd(budget.data))
@@ -228,12 +247,21 @@ def cmd_render(args: argparse.Namespace) -> int:
         model=model_id,
         request=omni_client.summarize_request(request),
         prompt_sha256=prompt_sha,
-        policy_hashes={p.name: p.policy_hash for p in (spec, models, budget)},
-        estimated_cost_usd=cost,
+        policy_hashes={p.name: p.policy_hash for p in (spec, models, budget, modes)},
+        estimated_cost_usd=cost, mode=mode, inputs=gen.summary(),
+        approved_by=(args.approved_by or "").strip() or None,
     )
 
-    print(f"모델 {model_id} | {duration}초 | {resolution} | {aspect} | 추정 ${cost:.2f} "
+    shown_mode = "" if mode == "text" else f"모드 {mode}({gen.name_ko}) | "     # 글만 모드의 출력은 4장과 같게 둔다
+    print(f"모델 {model_id} | {duration}초 | {resolution} | {aspect} | {shown_mode}추정 ${cost:.2f} "
           f"(실행 예산 ${guard.cap_usd:.2f})")
+    if record.approved_by:
+        print(f"타사 제품이 나오는 장면 · 승인: {record.approved_by}")
+    for item in gen.images:
+        what = f"{item.product_id} · {item.view}" if item.product_id else "직접 준 이미지"
+        print(f"  {item.tag} ← {Path(item.path).name} ({what}) sha256 {item.sha256[:12]}")
+    if gen.images:
+        print("  추정에는 영상 값만 들어 있다. 함께 보내는 이미지가 따로 청구되는지는 확인하지 못했다.")
     print(prompt)
 
     record_path = out_dir / f"{stem}.api_run.json"
@@ -466,6 +494,44 @@ def cmd_bible(args: argparse.Namespace) -> int:
     print(f"\n막힘 {errors}건 · 주의 {len(shown) - errors}건 · 규칙 bible_rules={rules.policy_hash}")
     print("이 점검은 형식을 본다. 사실이 참인지, 표현이 법에 맞는지는 사람이 확인한다.")
     return 4 if errors else 0
+
+
+def cmd_consistency(args: argparse.Namespace) -> int:
+    """장면마다 정지 화면을 뽑아 레퍼런스 옆에 붙이고, 사람이 적을 점검표와 실행 표를 만든다. 호출하지 않는다."""
+    policy = load_policy("generation_modes").data
+    recipe = load_policy("reference_sheet").data
+    render_dir = OUTPUT_DIR / "renders" / args.episode
+    rows = consistency.collect(render_dir, latest_only=not args.all)
+    if not rows:
+        print(f"[막힘] 성공한 장면 생성이 없다: {render_dir}. 먼저 단계 “4. 장면 생성”을 실행한다.")
+        return 2
+    out_dir = OUTPUT_DIR / "consistency" / args.episode
+    scenes = {s.scene_id: s for s in _load_episode(args.episode)}
+    references: dict[str, str] = {}
+    for row in rows:
+        stills = consistency.extract_stills(row, out_dir / "stills", policy["consistency"]["still_fractions"])
+        row.stills = [str(p) for p in stills]
+        fronts = []
+        for pid in (scenes[row.scene_id].products if row.scene_id in scenes else []):
+            front = reference_sheet.reference_dir(pid, recipe, EXAMPLE_DIR) / f"{recipe['anchor_view']}{reference_sheet._extension(recipe)}"
+            if front.is_file():
+                fronts.append(front)
+                references[pid] = str(front)
+        if stills:
+            sheet = reference_sheet.contact_sheet(fronts + stills, out_dir / f"{row.scene_id}.{row.mode}.{row.run_id}.sheet.jpg", 360)
+            row.sheet = str(sheet) if sheet else None
+        print(f"{row.scene_id} · {row.mode} · {row.run_id} · 정지 화면 {len(stills)}장"
+              + (f" · 레퍼런스 {len(fronts)}장과 나란히 → {Path(row.sheet).name}" if row.sheet else ""))
+    csv_path = consistency.write_csv(rows, out_dir / "mode_experiment.csv", policy["consistency"]["checklist"])
+    report = out_dir / "consistency_report.md"
+    if report.is_file():                      # 사람이 적은 점검표를 덮어쓰지 않는다
+        report = out_dir / f"consistency_report.{datetime.now():%Y%m%d-%H%M%S}.md"
+    report.write_text(consistency.report_markdown(args.episode, rows, policy, references,
+                                                  datetime.now().isoformat(timespec="seconds")), encoding="utf-8")
+    if not shutil.which("ffmpeg"):
+        print("FFmpeg 가 없어 정지 화면을 뽑지 못했다. 표와 점검표만 만들었다. ass doctor 로 확인한다.")
+    print(f"실행 표: {csv_path}\n점검표: {report}\n프로그램은 판정하지 않는다. 이음판을 열어 보고 점검표를 사람이 적는다.")
+    return 0
 
 
 def _dump_yaml(doc: dict, path, header: str) -> None:
@@ -868,8 +934,19 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--delivery", default="inline", choices=["inline", "uri"],
                    help="결과를 받는 방식. 4MB 를 넘으면 uri")
     r.add_argument("--name", default=None, help="결과 파일 이름(확장자 없이). 기본은 장면 id 와 실행 시각")
+    r.add_argument("--mode", default=None, choices=["text", "reference", "image", "frames"],
+                   help="생성 모드. 기본은 글만(text). reference 는 5장에서 고른 제품 레퍼런스를 함께 보낸다")
+    r.add_argument("--views", default=None, help="reference 모드에서 제품마다 보낼 방향. 쉼표로 여럿 (기본은 generation_modes.yaml)")
+    r.add_argument("--first-frame", default=None, help="image, frames 모드의 첫 프레임 이미지")
+    r.add_argument("--last-frame", default=None, help="frames 모드의 끝 프레임 이미지")
+    r.add_argument("--approved-by", default=None, help="타사 제품이 나오는 장면을 승인하는 사람의 이름")
     r.add_argument("--dry-run", action="store_true", help="API를 호출하지 않고 요청만 출력")
     r.set_defaults(func=cmd_render)
+
+    cs = sub.add_parser("consistency", help="생성한 장면의 정지 화면을 레퍼런스 옆에 놓고 점검표를 만든다")
+    cs.add_argument("--episode", default="product_intro")
+    cs.add_argument("--all", action="store_true", help="장면·모드마다 가장 최근 것만이 아니라 성공한 실행을 모두")
+    cs.set_defaults(func=cmd_consistency)
 
     a = sub.add_parser("assemble", help="장면 영상을 이어 붙여 초안 한 편을 만든다 (비용 없음)")
     a.add_argument("--episode", default="product_intro")

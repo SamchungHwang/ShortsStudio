@@ -79,7 +79,7 @@ def _duration(scene: SceneSpec, duration: str) -> int:
 def build_runs(command: str, episode: str, scene: str = ALL_SCENES,
                duration: str = SPEC_DURATION, dry_run: bool = True,
                example_dir: Path = EXAMPLE_DIR, picks: dict[str, str] | None = None,
-               approved_by: str = "") -> list[list[str]]:
+               approved_by: str = "", mode: str = "text") -> list[list[str]]:
     """콘솔의 선택을 `python -m ass` 뒤에 붙일 인자 목록들로 바꾼다. 장면이 여럿이면 한 장면씩 차례로 실행한다."""
     if command == "sheet":                    # 편에 나오는 제품마다 한 번씩
         runs = []
@@ -99,6 +99,10 @@ def build_runs(command: str, episode: str, scene: str = ALL_SCENES,
             argv = ["render", "--episode", episode, "--scene", str(n)]
             if duration != SPEC_DURATION:
                 argv += ["--duration", str(int(duration))]
+            if mode and mode != "text":
+                argv += ["--mode", mode]
+            if approved_by and any(not p.is_own for p in episode_products(episode, example_dir)):
+                argv += ["--approved-by", approved_by]
             if dry_run:
                 argv.append("--dry-run")
             runs.append(argv)
@@ -204,6 +208,9 @@ def list_outputs(output_dir: Path = OUTPUT_DIR, limit: int = 200,
     drafts = (example_dir / "drafts") if example_dir else None        # 글 모델이 만든 초안 (6장). 저장본이 아니다
     if drafts and drafts.is_dir():
         files += [p for p in drafts.rglob("*.yaml") if p.is_file()]
+    if example_dir and example_dir != settings.SAMPLE_DIR:                      # 내 프로젝트에 저장한 입력. 초안과 견주어 찾기 쉽게
+        files += [p for p in (example_dir / "source_briefs").glob("*.yaml") if p.is_file()]
+        files += [p for p in (example_dir / "episodes").glob("*/scene_*.yaml") if p.is_file()]
     files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     rows = []
     for p in files[:limit]:
@@ -468,6 +475,13 @@ def draft_cost(input_chars: int) -> float:
 
     policy = load_policy("draft_policy").data
     return estimate_text_cost(input_chars + 2000, load_policy("models").data, int(policy["output_tokens_ceiling"]))
+
+
+MODE_LABELS = {"text": "글만 (text)", "reference": "제품 레퍼런스 (reference)"}     # 콘솔에서 고르는 생성 모드 (7장)
+
+
+def mode_of(label: str) -> str:
+    return next((k for k, v in MODE_LABELS.items() if v == label), "text")
 
 
 class SheetView(BaseModel):

@@ -1,0 +1,32 @@
+# 장면 1 — question
+scene_id: watering_plants_s01
+episode_id: watering_plants
+format: info
+role: question
+duration_s: 15
+aspect_ratio: '9:16'
+products: []
+setting_en: Bright minimalist living room with potted green plants on a wooden table, soft daylight
+beats:
+- start_s: 0
+  end_s: 3
+  visual_ko: 창가 햇살 아래 놓인 화분의 마른 흙 표면
+  visual_en: Dry potting soil inside a ceramic planter placed by a sunny window, close-up shot
+  camera_en: Static macro shot
+  narration_ko: 물을 언제 주어야 할까.
+  caption_ko: 화분 물주기 고민
+- start_s: 3
+  end_s: 9
+  visual_ko: 잎이 있는 화분 옆에 놓인 작은 물뿌리개
+  visual_en: Small watering can standing beside a green potted plant on a wooden surface
+  camera_en: Slow pan right
+  narration_ko: 흙 상태를 모르면 물을 맞추기 어렵다.
+  caption_ko: 물주는 때가 어렵다
+- start_s: 9
+  end_s: 15
+  visual_ko: 화분 주변을 정리하며 상태를 살피는 모습
+  visual_en: Hands gently turning a potted plant to inspect the leaves and pot base, torso down view
+  camera_en: Eye-level medium shot
+  narration_ko: 흙 상태를 확인하고 주는 방법을 알아본다.
+  caption_ko: 세 가지 방법 확인
+audio_en: Gentle ambient room tone, soft rustle of leaves

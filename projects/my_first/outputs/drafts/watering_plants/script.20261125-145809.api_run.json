@@ -1,0 +1,35 @@
+{
+  "run_id": "20261125-145809",
+  "purpose": "ass script watering_plants",
+  "episode": "watering_plants",
+  "scene_id": "script",
+  "created_at": "2026-11-25T05:58:09.613116+00:00",
+  "model": "gemini-3.8-flash",
+  "sdk": "google-genai",
+  "sdk_version": "3.6.1",
+  "python_version": "3.13.18",
+  "request": {
+    "model": "gemini-3.8-flash",
+    "input_chars": 893,
+    "system_chars": 540,
+    "generation_config": {
+      "temperature": 0.2
+    }
+  },
+  "prompt_sha256": "07d6818e1e39d716e4e89892c9ec08c8c694b202bb838498aa0cd7426c7c7b12",
+  "policy_hashes": {
+    "draft_policy": "289cf8f72113",
+    "models": "4555ceffad38",
+    "budget_policy": "5fa1c47512b3"
+  },
+  "interaction_id": null,
+  "output_path": null,
+  "elapsed_s": null,
+  "estimated_cost_usd": 0.0321,
+  "billed_cost_usd": null,
+  "status": "dry_run",
+  "attempts": 0,
+  "attempt_errors": [],
+  "error": null,
+  "notes": "추정 비용은 어림 상한이다. 글자 수를 토큰 수로 쳤고 단가는 확인하지 못한 값이다"
+}

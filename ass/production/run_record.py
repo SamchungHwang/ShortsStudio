@@ -33,6 +33,9 @@ class RunRecord(BaseModel):
     sdk_version: str | None = Field(default_factory=_sdk_version)
     python_version: str = Field(default_factory=platform.python_version)
     request: dict[str, Any]
+    mode: str = "text"                         # 생성 모드 (7장): text | reference | image | frames
+    inputs: list[dict[str, Any]] = []          # 함께 보낸 이미지 (태그, 제품, 방향, sha256 앞 12자)
+    approved_by: str | None = None             # 타사 제품이 나오는 장면을 승인한 사람
     prompt_sha256: str | None = None
     policy_hashes: dict[str, str] = {}
     interaction_id: str | None = None

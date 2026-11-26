@@ -1,0 +1,31 @@
+# 장면 3 초안 — gemini-3.8-flash 이 만들었다. 사람이 고쳐서 저장해야 쓰인다
+scene_id: watering_plants_s03
+episode_id: watering_plants
+format: info
+role: wrap_up
+duration_s: 15
+products: []
+setting_en: Clean and tidy indoor plant shelf in a sunny room
+beats:
+- start_s: 0
+  end_s: 5
+  visual_ko: 정돈된 화분 받침 위에 단정하게 놓인 화분의 모습.
+  visual_en: A clean potted plant standing on a dry saucer on a wooden plant shelf.
+  camera_en: Static medium close-up
+  narration_ko: 흙 확인과 흠뻑 주기, 받침 비우기를 기억한다.
+  caption_ko: 물주기 세 가지 정리
+- start_s: 5
+  end_s: 10
+  visual_ko: 햇빛을 받아 싱그러운 잎사귀들을 가진 실내 화분 전체 모습.
+  visual_en: Potted green plant with fresh foliage illuminated by soft sunlight.
+  camera_en: Slow tilt-up shot of the plant stem and leaves
+  narration_ko: 올바른 방법으로 물을 주면 화분을 건강하게 가꾼다.
+  caption_ko: 건강한 화분 관리
+- start_s: 10
+  end_s: 15
+  visual_ko: 손이 화분 흙 쪽으로 다가가 흙 표면을 만져보려는 순간.
+  visual_en: A hand reaching toward the plant pot to touch the soil in daylight.
+  camera_en: Close-up shot of hand approaching soil surface
+  narration_ko: 지금 화분의 흙에 손가락을 넣어 확인해본다.
+  caption_ko: 지금 흙을 확인해보자
+audio_en: Calm and peaceful room tone with subtle breeze sound

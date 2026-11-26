@@ -1,0 +1,32 @@
+scene_id: sun_s03
+episode_id: sunscreen_compare
+format: comparison
+role: verdict
+duration_s: 15
+products: [moalab_gel_sunscreen, haruon_cream_sunscreen]
+setting_en: "The same clean white tabletop by a window in soft daylight, plain light grey wall behind."
+beats:
+  - start_s: 0
+    end_s: 5
+    visual_ko: "두 접시가 나란히 놓여 있다. 왼쪽은 투명한 젤, 오른쪽은 흰 크림."
+    visual_en: "The two glass dishes sit side by side, clear gel on the left and white cream on the right"
+    camera_en: "top-down static shot"
+    narration_ko: "용량은 같고 제형이 다르다."
+    caption_ko: "용량 같고 제형 다름"
+    evidence: [gel_sun_volume, cream_sun_volume, gel_sun_texture, cream_sun_texture]
+  - start_s: 5
+    end_s: 10
+    visual_ko: "손가락이 젤을 조금 찍어 들어 올리고, 이어서 크림을 조금 찍어 들어 올린다."
+    visual_en: "A fingertip lifts a little of the clear gel, then a little of the white cream"
+    camera_en: "macro shot, shallow depth of field"
+    narration_ko: "어느 쪽이 낫다고 정하지 않는다."
+    caption_ko: "승패는 없다"
+  - start_s: 10
+    end_s: 15
+    visual_ko: "두 튜브와 두 접시가 한 화면에 들어오는 마지막 화면."
+    visual_en: "Final shot of both tubes standing behind their dishes, labels facing the camera"
+    camera_en: "slow pull-back to a wide two-shot"
+    narration_ko: "좋아하는 제형으로 고르면 된다."
+    caption_ko: "제형으로 고르기"
+    evidence: [gel_sun_texture, cream_sun_texture]
+audio_en: "Quiet room tone."

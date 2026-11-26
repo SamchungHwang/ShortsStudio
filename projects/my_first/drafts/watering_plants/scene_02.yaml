@@ -1,0 +1,31 @@
+# 장면 2 초안 — gemini-3.8-flash 이 만들었다. 사람이 고쳐서 저장해야 쓰인다
+scene_id: watering_plants_s02
+episode_id: watering_plants
+format: info
+role: methods
+duration_s: 15
+products: []
+setting_en: Sunlit indoor plant corner with ceramic pots
+beats:
+- start_s: 0
+  end_s: 5
+  visual_ko: 손가락 하나를 화분 흙 속으로 살짝 넣어보는 손의 모습.
+  visual_en: A hand inserting one index finger into the potting soil without showing face.
+  camera_en: Close-up shot focusing on hand and dry soil
+  narration_ko: 물을 주기 전 손가락을 흙에 넣어 마른 상태인지 본다.
+  caption_ko: 흙 마름 상태 확인
+- start_s: 5
+  end_s: 10
+  visual_ko: 물뿌리개로 물을 천천히 부어 화분 밑구멍으로 물이 흘러나온다.
+  visual_en: Water pouring from a spout onto soil, dripping gently through the pot drainage hole.
+  camera_en: Eye-level close-up of water flowing to the saucer
+  narration_ko: 물을 줄 때는 화분 밑으로 흘러나올 때까지 흠뻑 준다.
+  caption_ko: 밑으로 흐를 때까지 주기
+- start_s: 10
+  end_s: 15
+  visual_ko: 손으로 화분 받침을 들어 고인 물을 싱크대에 비워낸다.
+  visual_en: Hands lifting the saucer under the pot and pouring out pooled water into a sink.
+  camera_en: Medium shot focused on hands and saucer
+  narration_ko: 물을 주고 십 분쯤 지나 받침에 고인 물은 버린다.
+  caption_ko: 받침의 고인 물 버리기
+audio_en: Faint sound of soil shifting and gentle water pouring

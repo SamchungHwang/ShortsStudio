@@ -10,6 +10,8 @@
 """
 from __future__ import annotations
 
+from datetime import datetime
+
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
@@ -310,19 +312,20 @@ class BriefForm:
         self.source.widget.pack(fill="both", expand=True, padx=6, pady=2)
         draft = ttk.Frame(cell)                    # 초안: 원문 아래. 요청만 확인 칸은 본 화면의 칸과 같은 것이다
         draft.pack(fill="x", pady=(2, 0))
-        ttk.Label(draft, text="원문에서 초안").pack(side="left", padx=6)
+        ttk.Label(draft, text="원문에서 소재 요약 초안").pack(side="left", padx=6)
         ttk.Checkbutton(draft, text="호출하지 않고 요청만 확인 (비용 없음)",
                         variable=self.app.dry_run).pack(side="left", padx=6)
         ttk.Button(draft, text="초안 만들기 (ass brief)", command=self.make_draft).pack(side="left", padx=6)
         ttk.Button(draft, text="초안 불러오기", command=self.load_draft).pack(side="left", padx=6)
-        ttk.Label(draft, text="체크가 있으면 보내는 글만 보여 줍니다", foreground=GREY).pack(side="left", padx=6)
+        ttk.Label(draft, text="제목·약속·요점만 만듭니다. 장면 초안은 장면 작성 창에서", foreground=GREY).pack(side="left", padx=6)
 
         bar = ttk.Frame(win, padding=10)
         bar.pack(fill="x")
         ttk.Button(bar, text="닫기", command=win.destroy).pack(side="right", padx=4)
         ttk.Button(bar, text="저장하고 장면 작성으로", command=lambda: self.save(next_step=True)).pack(side="right", padx=4)
         ttk.Button(bar, text="저장", command=self.save).pack(side="right", padx=4)
-        ttk.Label(bar, text="저장하면 source_briefs/<편 이름>.yaml 에 적습니다", foreground=GREY).pack(side="left", padx=8)
+        self.saved_note = tk.StringVar(value="저장하면 source_briefs/<편 이름>.yaml 에 적습니다. 초안(drafts)은 바뀌지 않습니다")
+        ttk.Label(bar, textvariable=self.saved_note, foreground=GREY).pack(side="left", padx=8)
 
     def show(self, doc: dict[str, Any]) -> None:
         names = {v: k for k, v in self.formats.items()}
@@ -406,10 +409,22 @@ class BriefForm:
                 f"어림 상한 ${cost:.2f}\n어림이며 실제 청구액은 결제 화면에서 확인해야 합니다.\n\n실행할까요?", parent=self.win):
             return
         self.app._begin(runs)
-        messagebox.showinfo(
-            "실행했습니다",
-            "실행 로그에 결과가 나옵니다.\n" + ("지금은 요청만 확인입니다. 보내는 글만 보여 줍니다."
-                                           if dry else "끝나면 이 창의 [초안 불러오기]를 누르세요."), parent=self.win)
+        if dry:
+            messagebox.showinfo("실행했습니다", "지금은 요청만 확인입니다. 실행 로그에 보내는 글만 보여 줍니다.", parent=self.win)
+            return
+        self.saved_note.set("초안을 만드는 중입니다. 끝나면 칸에 자동으로 넣습니다 …")
+        self.app.after_run = self._draft_done
+
+    def _draft_done(self, code: int) -> None:
+        """초안 만들기가 끝났다. 성공했으면 [초안 불러오기]를 대신 누른다."""
+        if not self.win.winfo_exists():
+            return
+        if code != 0:
+            self.saved_note.set("초안을 만들지 못했습니다. 실행 로그를 보세요")
+            return
+        self.saved_note.set("초안을 칸에 넣었습니다. 읽고 고친 뒤 [저장]을 누르세요. 저장해야 쓰입니다")
+        self.win.lift()
+        self.load_draft()
 
     def load_draft(self) -> None:
         """만들어 둔 초안을 칸에 넣는다. 소유 확인 칸은 건드리지 않는다. 저장은 사람이 누른다."""
@@ -470,6 +485,7 @@ class BriefForm:
             messagebox.showwarning("저장하지 않았습니다", str(exc), parent=self.win)
             return False
         self.app.reload()
+        self.saved_note.set(f"✔ 저장했습니다: source_briefs/{episode}.yaml · {datetime.now():%H:%M:%S}")
         if next_step:
             self.win.destroy()
             form = SceneForm(self.app)
@@ -500,6 +516,7 @@ class SceneForm:
                        ("start_s", "end_s", "visual_ko", "visual_en", "camera_en", "narration_ko", "caption_ko", "evidence")}
                       for _ in range(3)]
         self.facts = tk.StringVar()
+        self.draft_note = tk.StringVar(value="세 장면을 한 번에 만들고, 끝나면 지금 보이는 장면에 넣습니다")
         self.progress = tk.StringVar()
         self.format = ""
         self._role = ""
@@ -562,6 +579,15 @@ class SceneForm:
             for row, (key, label) in enumerate(self.BEAT_ROWS, 1):
                 ttk.Label(frame, text=label, width=14).grid(row=row, column=0, sticky="w", **PAD)
                 ttk.Entry(frame, textvariable=beat[key], width=100).grid(row=row, column=1, sticky="ew", **PAD)
+
+        draft = ttk.Frame(win, padding=(10, 4))       # 장면 초안: 소재 요약의 초안과는 다른 단계다
+        draft.pack(fill="x")
+        ttk.Label(draft, text="소재 요약에서 장면 초안").pack(side="left", padx=6)
+        ttk.Checkbutton(draft, text="호출하지 않고 요청만 확인 (비용 없음)",
+                        variable=self.app.dry_run).pack(side="left", padx=6)
+        ttk.Button(draft, text="장면 초안 만들기 (ass script)", command=self.make_draft).pack(side="left", padx=6)
+        ttk.Button(draft, text="초안 불러오기", command=self.load_draft).pack(side="left", padx=6)
+        ttk.Label(draft, textvariable=self.draft_note, foreground=GREY).pack(side="left", padx=6)
 
         bar = ttk.Frame(win, padding=10)
         bar.pack(fill="x")
@@ -643,12 +669,43 @@ class SceneForm:
             return
         self.show(doc)
 
+    def make_draft(self) -> None:
+        """이 편의 저장된 소재 요약에서 장면 셋의 초안을 만든다 (ass script). 칸은 바뀌지 않는다."""
+        if not self.app.run_script(episode=self.episode.get().strip(), parent=self.win):
+            return
+        if self.app.dry_run.get():
+            messagebox.showinfo("실행했습니다", "지금은 요청만 확인입니다. 실행 로그에 보내는 글만 보여 줍니다.", parent=self.win)
+            return
+        self.draft_note.set("장면 초안을 만드는 중입니다. 끝나면 지금 보이는 장면에 자동으로 넣습니다 …")
+        self.app.after_run = self._draft_done
+
+    def _draft_done(self, code: int) -> None:
+        """장면 초안 만들기가 끝났다. 성공했으면 지금 보이는 장면에 [초안 불러오기]를 대신 누른다."""
+        if self.win is None or not self.win.winfo_exists():
+            return
+        if code != 0:
+            self.draft_note.set("장면 초안을 만들지 못했습니다. 실행 로그를 보세요")
+            return
+        self.draft_note.set("세 장면의 초안이 생겼습니다. 다른 장면은 장면을 고르고 [초안 불러오기]")
+        self.win.lift()
+        typed = any(beat["visual_ko"].get().strip() for beat in self.beats)
+        if typed and not messagebox.askyesno(
+                "초안을 칸에 넣을까요?",
+                f"장면 {self.number.get()}의 칸에 이미 적은 내용이 있습니다.\n초안으로 바꿔 넣을까요?\n\n"
+                "[아니요]를 누르면 칸은 그대로 두고, 초안은 [초안 불러오기]로 언제든 넣을 수 있습니다.", parent=self.win):
+            return
+        self.load_draft()
+
     def load_draft(self) -> None:
         """ass script 가 만든 이 장면의 초안을 칸에 넣는다. 저장은 사람이 누른다."""
         episode, number = self.episode.get().strip(), int(self.number.get())
         doc = authoring.draft_scene_doc(self.project_dir, episode, number)
         if doc is None:
-            messagebox.showinfo("초안이 없습니다", "먼저 [입력] → “장면 초안 만들기”를 실행하세요.", parent=self.win)
+            messagebox.showinfo(
+                "장면 초안이 없습니다",
+                "이 편의 장면 초안이 아직 없습니다.\n\n소재 입력의 [초안 만들기]는 소재 요약(제목, 약속, 요점)만 만듭니다. "
+                "장면은 따로 만듭니다.\n아래의 요청만 확인 칸의 체크를 없애고 [장면 초안 만들기 (ass script)]를 누르세요. "
+                "실행이 끝난 뒤 [초안 불러오기]를 누르면 들어옵니다.", parent=self.win)
             return
         self.show(doc)
         check = authoring.draft_scene_check(self.project_dir, episode, number)
